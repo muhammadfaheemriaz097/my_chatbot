@@ -4,36 +4,36 @@ import time
 import datetime
 from supabase import create_client
 
-# 1. INITIALIZE DATABASE CONNECTION
-# Secrets required: SUPABASE_URL, SUPABASE_KEY, GROQ_API_KEY
+# 1. INITIALIZE DATABASE
+# Ensure SUPABASE_URL, SUPABASE_KEY, and GROQ_API_KEY are in Streamlit Secrets
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-# 2. APP CONFIGURATION
+# 2. APP CONFIG
 st.set_page_config(page_title="Feemo AI", page_icon="✨", layout="wide")
 
-# 3. SILENT DATA SYNC (Load Memory & Recent Activity)
+# 3. DATA LOAD (History & Silent Memory)
 if "bot_memory" not in st.session_state:
     try:
-        # Load user context silently from 'user_memory' table
+        # Load user context from user_memory
         mem_res = supabase.table("user_memory").select("memory_context").eq("id", 1).execute()
         st.session_state.bot_memory = mem_res.data[0]['memory_context'] if mem_res.data else ""
         
-        # Load the latest 10 chat titles for the sidebar from 'chat_history' table
+        # Load Recent Activity titles from chat_history
         hist_res = supabase.table("chat_history").select("chat_title").order("created_at", desc=True).limit(10).execute()
         st.session_state.recent_activity = [row['chat_title'] for row in hist_res.data] if hist_res.data else []
     except Exception:
         st.session_state.bot_memory = ""
         st.session_state.recent_activity = []
 
-# 4. CHATGPT-STYLE INTERFACE (Mobile Hamburger Fix)
+# 4. CHATGPT-STYLE CSS (Hamburger Menu Fix)
 st.markdown("""
     <style>
-    /* HIDE DEFAULT STREAMLIT UI */
+    /* HIDE DEFAULT UI */
     #MainMenu, footer, .stAppToolbar {visibility: hidden;}
     
-    /* 1. REPLACE ARROW WITH THREE LINES (HAMBURGER MENU) */
+    /* HAMBURGER MENU ICON (Three Lines) */
     button[kind="headerNoPadding"] svg { display: none; }
     button[kind="headerNoPadding"]::after { 
         content: '☰'; 
@@ -51,38 +51,37 @@ st.markdown("""
         height: 45px !important;
     }
 
-    /* 2. DARK THEME & CHATGPT-STYLE ALIGNMENT */
+    /* DARK THEME & LAYOUT */
     .stApp { background-color: #0d0d0d; color: #ececf1; }
     section[data-testid="stSidebar"] { 
         background-color: #000000 !important; 
         border-right: 1px solid #2d2d2d !important; 
     }
     
-    /* RECENT ACTIVITY LIST STYLING */
+    /* RECENT ACTIVITY LIST */
     .history-label { color: #666; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin: 25px 0 10px 10px; }
     .history-item {
         padding: 12px 15px;
         border-radius: 8px;
-        margin-bottom: 4px;
+        margin-bottom: 5px;
         font-size: 14px;
         color: #d1d1d1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        transition: 0.2s;
     }
-    .history-item:hover { background-color: #1a1a1a; cursor: default; }
+    .history-item:hover { background-color: #1a1a1a; }
 
-    /* CHAT BUBBLE STYLING */
+    /* CHAT BUBBLES */
     [data-testid="stChatMessage"] { border: none !important; padding: 2rem 1rem !important; }
     [data-testid="stChatMessage"]:nth-child(odd) { background-color: #1a1a1a !important; }
 
-    /* CENTERED CONTENT CONTAINER */
+    /* CENTERED CONTAINER */
     .block-container { max-width: 850px; padding-top: 1rem; }
     </style>
     """, unsafe_allow_html=True)
 
-# 5. SIDEBAR (Activity History)
+# 5. SIDEBAR (History List)
 with st.sidebar:
     st.markdown("<h2 style='color:#c9a84c; margin-left:10px;'>Feemo AI</h2>", unsafe_allow_html=True)
     
@@ -92,14 +91,12 @@ with st.sidebar:
     
     st.markdown("<div class='history-label'>RECENT ACTIVITY</div>", unsafe_allow_html=True)
     
-    # Render persistent titles from Supabase
     if st.session_state.recent_activity:
         for activity in st.session_state.recent_activity:
             st.markdown(f"<div class='history-item'>💬 {activity}</div>", unsafe_allow_html=True)
     else:
         st.sidebar.caption("No recent activity found.")
 
-    # Developer Signature (Bottom)
     st.sidebar.markdown(f"""
         <div style='position: fixed; bottom: 20px; width: 220px; font-size:11px; color:#444; border-top: 1px solid #222; padding-top:10px; margin-left:10px;'>
             ML & AI Engineer<br><b>Muhammad Faheem Riaz</b>
@@ -113,36 +110,28 @@ API_KEY = st.secrets["GROQ_API_KEY"]
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display session chat
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 7. AI LOGIC & PERMANENT STORAGE
+# 7. CHAT LOGIC
 if prompt := st.chat_input("Message Feemo AI..."):
-    # HISTORY SAVING: Only triggers on the first message of a new session
+    # If starting a new session, save the title to Supabase
     if len(st.session_state.messages) == 0:
         try:
-            # Create a title from the first prompt
             title_text = prompt[:35] + "..." if len(prompt) > 35 else prompt
-            # Push to Supabase 'chat_history' table
             supabase.table("chat_history").insert({"chat_title": title_text}).execute()
-            # Instant update for Sidebar list
             st.session_state.recent_activity.insert(0, title_text)
         except Exception:
-            pass # Silent fail to keep UI clean
+            pass # Silent fail for clean UI
 
-    # Add message to UI
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
     try:
-        # Context Injection: Live Date + Silent Memory Context
         now = datetime.datetime.now().strftime("%B %d, %Y")
-        system_rules = f"You are Feemo AI. Today's date is {now}."
-        if st.session_state.bot_memory:
-            system_rules += f" Important context about user: {st.session_state.bot_memory}"
+        system_rules = f"You are Feemo AI. Today is {now}. Context: {st.session_state.bot_memory}"
         
         headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
         payload = {
@@ -154,10 +143,9 @@ if prompt := st.chat_input("Message Feemo AI..."):
         with st.chat_message("assistant"):
             placeholder = st.empty()
             response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-            response.raise_for_status()
             reply = response.json()["choices"][0]["message"]["content"]
             
-            # Smooth Typing Animation
+            # Smooth Typing Effect
             full_text = ""
             for char in reply:
                 full_text += char
@@ -167,5 +155,5 @@ if prompt := st.chat_input("Message Feemo AI..."):
             
             st.session_state.messages.append({"role": "assistant", "content": reply})
             
-    except Exception as e:
-        st.error("Connection failed. Please check your API key or network.")
+    except Exception:
+        st.error("Connection Error.")
