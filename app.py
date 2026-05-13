@@ -1,6 +1,7 @@
-# -*- coding: utf-8 -*-
+
 import streamlit as st
-from groq import Groq
+import requests
+import json
 
 st.set_page_config(page_title="Feemo AI", page_icon="🤖")
 st.title("🤖 Feemo AI")
@@ -27,22 +28,26 @@ if prompt := st.chat_input("Ask Feemo AI anything..."):
             st.markdown(prompt)
 
         try:
-            client = Groq(api_key=api_key)
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
 
-            safe_messages = []
-            for msg in st.session_state.messages:
-                safe_content = msg["content"].encode("utf-8", errors="ignore").decode("utf-8")
-                safe_messages.append({"role": msg["role"], "content": safe_content})
+            data = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": st.session_state.messages,
+                "max_tokens": 1000
+            }
 
             with st.chat_message("assistant"):
                 with st.spinner("Feemo AI is thinking..."):
-                    response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=safe_messages,
-                        max_tokens=1000
+                    response = requests.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers=headers,
+                        json=data
                     )
-                    reply = response.choices[0].message.content
-                    reply = reply.encode("utf-8", errors="ignore").decode("utf-8")
+                    result = response.json()
+                    reply = result["choices"][0]["message"]["content"]
                     st.markdown(reply)
 
             st.session_state.messages.append({"role": "assistant", "content": reply})
