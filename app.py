@@ -121,4 +121,46 @@ if prompt := st.chat_input("Message Feemo AI..."):
     if len(st.session_state.messages) == 0:
         try:
             title_text = prompt[:35] + "..." if len(prompt) > 35 else prompt
-            supabase.table("chat_history").insert({"chat_title": title_text}).
+            supabase.table("chat_history").insert({"chat_title": title_text}).execute()
+            # Update the sidebar state immediately
+            st.session_state.recent_activity.insert(0, title_text)
+        except Exception:
+            pass # Fails silently to prevent UI disruption
+
+    # UI Update
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    try:
+        # Context Injection: Date + Silent Memory
+        now = datetime.datetime.now().strftime("%B %d, %Y")
+        system_context = f"You are Feemo AI. Today is {now}."
+        if st.session_state.bot_memory:
+            system_context += f" User Context: {st.session_state.bot_memory}"
+        
+        headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+        payload = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [{"role": "system", "content": system_context}] + st.session_state.messages,
+            "temperature": 0.6
+        }
+        
+        with st.chat_message("assistant"):
+            placeholder = st.empty()
+            response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+            response.raise_for_status()
+            reply = response.json()["choices"][0]["message"]["content"]
+            
+            # Smooth Typing Animation
+            full_text = ""
+            for char in reply:
+                full_text += char
+                placeholder.markdown(full_text + "▌")
+                time.sleep(0.003)
+            placeholder.markdown(full_text)
+            
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            
+    except Exception as e:
+        st.error("I'm having trouble connecting right now. Please check your internet or API key.")
