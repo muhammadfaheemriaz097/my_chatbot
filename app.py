@@ -65,4 +65,43 @@ for msg in st.session_state.messages:
         st.markdown("<p style='color:#ffffff;font-size:16px;line-height:1.8;font-weight:500;'>" + msg["content"] + "</p>", unsafe_allow_html=True)
 
 if prompt := st.chat_input("✦ Ask Feemo AI anything..."):
-    st.session_state.messages.append({"role": "
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown("<p style='color:#ffffff;font-size:16px;line-height:1.8;font-weight:500;'>" + prompt + "</p>", unsafe_allow_html=True)
+    try:
+        headers = {
+            "Authorization": "Bearer " + API_KEY,
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": st.session_state.messages,
+            "max_tokens": 1000
+        }
+        with st.chat_message("assistant"):
+            with st.spinner("✦ Feemo AI is thinking..."):
+                response = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=data
+                )
+                result = response.json()
+                if "choices" in result:
+                    reply = result["choices"][0]["message"]["content"]
+                    placeholder = st.empty()
+                    typed = ""
+                    for char in reply:
+                        typed += char
+                        placeholder.markdown("<p style='color:#c9a84c;font-size:16px;line-height:1.8;font-weight:500;'>" + typed + "▌</p>", unsafe_allow_html=True)
+                        time.sleep(0.008)
+                    placeholder.markdown("<p style='color:#ffffff;font-size:16px;line-height:1.8;font-weight:500;'>" + reply + "</p>", unsafe_allow_html=True)
+                    st.session_state.messages.append({"role": "assistant", "content": reply})
+                elif "error" in result:
+                    st.error("Error: " + result["error"]["message"])
+                    st.session_state.messages.pop()
+                else:
+                    st.error("Unexpected response from API")
+                    st.session_state.messages.pop()
+    except Exception as e:
+        st.error("Error: " + str(e))
+        st.session_state.messages.pop()
