@@ -94,7 +94,7 @@ if prompt := st.chat_input("✦ Ask Feemo AI anything..."):
                     typed = ""
                     for char in reply:
                       typed += char
-                       placeholder.markdown(
+                    placeholder.markdown(
                         "<p style='color:#c9a84c;font-size:15px;line-height:1.7;'>" + typed + "▌</p>",
                        unsafe_allow_html=True
                      )
