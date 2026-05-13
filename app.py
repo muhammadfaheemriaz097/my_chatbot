@@ -1,4 +1,21 @@
+
 import streamlit as st
+# (Other imports like groq, etc.)
+
+# --- HIDE STREAMLIT ELEMENTS ---
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            .stAppToolbar {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
+# --- YOUR EXISTING CODE STARTS HERE ---
+st.title("✨ FEEMO AI ✨")
+# ... rest of your codeimport streamlit as st
 import requests
 import time
 
