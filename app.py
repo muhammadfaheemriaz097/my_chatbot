@@ -1,43 +1,47 @@
-
 import streamlit as st
-# (Other imports like groq, etc.)
+import requests
+import time
+from PIL import Image
 
-# --- HIDE STREAMLIT ELEMENTS ---
+# 1. SET PAGE CONFIG (Must be the very first Streamlit command)
+st.set_page_config(
+    page_title="Feemo AI", 
+    page_icon="logo.png", 
+    layout="centered"
+)
+
+# 2. HIDE STREAMLIT ELEMENTS (GitHub icon, MainMenu, Footer)
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
             .stAppToolbar {visibility: hidden;}
+            
+            /* Your Existing Custom Styles */
+            .stApp { background-color: #0a0a0a; color: #ffffff; }
+            .stChatInput input { background-color: #1a1a1a !important; color: #ffffff !important; border: 1px solid #c9a84c !important; border-radius: 12px !important; font-size: 15px !important; }
+            .stChatMessage { background-color: #1a1a1a !important; border-radius: 12px !important; padding: 15px !important; border-left: 3px solid #c9a84c !important; margin-bottom: 10px !important; }
+            .stChatMessage p { color: #ffffff !important; font-size: 16px !important; line-height: 1.8 !important; font-weight: 500 !important; }
+            section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #c9a84c !important; }
+            h1 { color: #c9a84c !important; font-family: Georgia, serif !important; letter-spacing: 2px !important; }
+            p { color: #ffffff !important; font-size: 15px !important; }
+            ::-webkit-scrollbar { width: 4px; }
+            ::-webkit-scrollbar-thumb { background: #c9a84c; border-radius: 4px; }
             </style>
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# --- YOUR EXISTING CODE STARTS HERE ---
-
-# ... rest of your codeimport streamlit as st
-import requests
-import time
-
-st.set_page_config(page_title="Feemo AI", page_icon="🤖", layout="centered")
-
-st.markdown("""
-<style>
-.stApp { background-color: #0a0a0a; color: #ffffff; }
-.stChatInput input { background-color: #1a1a1a !important; color: #ffffff !important; border: 1px solid #c9a84c !important; border-radius: 12px !important; font-size: 15px !important; }
-.stChatMessage { background-color: #1a1a1a !important; border-radius: 12px !important; padding: 15px !important; border-left: 3px solid #c9a84c !important; margin-bottom: 10px !important; }
-.stChatMessage p { color: #ffffff !important; font-size: 16px !important; line-height: 1.8 !important; font-weight: 500 !important; }
-section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #c9a84c !important; }
-h1 { color: #c9a84c !important; font-family: Georgia, serif !important; letter-spacing: 2px !important; }
-p { color: #ffffff !important; font-size: 15px !important; }
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-thumb { background: #c9a84c; border-radius: 4px; }
-</style>
-""", unsafe_allow_html=True)
+# 3. SIDEBAR WITH NEW LOGO
+try:
+    logo = Image.open("logo.png")
+    st.sidebar.image(logo, use_container_width=True)
+except:
+    # Fallback if image isn't uploaded yet
+    st.sidebar.markdown("<h1 style='text-align:center;'>🤖</h1>", unsafe_allow_html=True)
 
 st.sidebar.markdown("""
-<div style='text-align:center;padding:20px 0;'>
-<div style='width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#c9a84c,#8b6914);margin:0 auto 12px auto;display:flex;align-items:center;justify-content:center;font-size:36px;'>🤖</div>
+<div style='text-align:center;padding:0 0 20px 0;'>
 <h2 style='color:#c9a84c;margin:0;'>Feemo AI</h2>
 <p style='color:#8b6914;font-size:12px;'>Your Smart AI Assistant</p>
 </div>
@@ -55,6 +59,7 @@ if st.sidebar.button("🗑️ Clear Chat"):
     st.session_state.messages = []
     st.rerun()
 
+# 4. MAIN INTERFACE
 st.markdown("""
 <div style='text-align:center;padding:10px 0 20px 0;'>
 <h1 style='color:#c9a84c;font-size:42px;letter-spacing:3px;'>✦ FEEMO AI ✦</h1>
@@ -63,6 +68,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# 5. LOGIC & API
 API_KEY = st.secrets["GROQ_API_KEY"]
 
 if "messages" not in st.session_state:
@@ -115,9 +121,6 @@ if prompt := st.chat_input("✦ Ask Feemo AI anything..."):
                     st.session_state.messages.append({"role": "assistant", "content": reply})
                 elif "error" in result:
                     st.error("Error: " + result["error"]["message"])
-                    st.session_state.messages.pop()
-                else:
-                    st.error("Unexpected response from API")
                     st.session_state.messages.pop()
     except Exception as e:
         st.error("Error: " + str(e))
