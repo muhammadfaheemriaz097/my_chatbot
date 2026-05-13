@@ -66,19 +66,16 @@ if prompt := st.chat_input("✦ Ask Feemo AI anything..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
     try:
         headers = {
             "Authorization": "Bearer " + API_KEY,
             "Content-Type": "application/json"
         }
-
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": st.session_state.messages,
             "max_tokens": 1000
         }
-
         with st.chat_message("assistant"):
             with st.spinner("✦ Feemo AI is thinking..."):
                 response = requests.post(
@@ -87,28 +84,15 @@ if prompt := st.chat_input("✦ Ask Feemo AI anything..."):
                     json=data
                 )
                 result = response.json()
-
                 if "choices" in result:
                     reply = result["choices"][0]["message"]["content"]
                     placeholder = st.empty()
                     typed = ""
                     for char in reply:
-                      typed += char
-                    placeholder.markdown(
-                        "<p style='color:#c9a84c;font-size:15px;line-height:1.7;'>" + typed + "▌</p>",
-                         unsafe_allow_html=True
-                     )
-                     time.sleep(0.008)
-                       placeholder.markdown(
-               "<p style='color:#f5f5f5;font-size:15px;line-height:1.7;'>" + reply + "</p>",
-                        unsafe_allow_html=True
-                      )
-                 placeholder.markdown(
-                           "<p style='color:#f5f5f5;font-size:15px;line-height:1.7;'>" + reply + "</p>",
-                           unsafe_allow_html=True
-                  )
+                        typed += char
+                        placeholder.markdown("<p style='color:#c9a84c;font-size:15px;line-height:1.7;'>" + typed + "▌</p>", unsafe_allow_html=True)
                         time.sleep(0.008)
-                    placeholder.markdown(reply)
+                    placeholder.markdown("<p style='color:#f5f5f5;font-size:15px;line-height:1.7;'>" + reply + "</p>", unsafe_allow_html=True)
                     st.session_state.messages.append({"role": "assistant", "content": reply})
                 elif "error" in result:
                     st.error("Error: " + result["error"]["message"])
@@ -116,7 +100,6 @@ if prompt := st.chat_input("✦ Ask Feemo AI anything..."):
                 else:
                     st.error("Unexpected response from API")
                     st.session_state.messages.pop()
-
     except Exception as e:
         st.error("Error: " + str(e))
         st.session_state.messages.pop()
