@@ -4,8 +4,8 @@ import time
 import datetime
 from supabase import create_client
 
-# 1. INITIALIZE DATABASE
-# Required Secrets: SUPABASE_URL, SUPABASE_KEY, GROQ_API_KEY
+# 1. INITIALIZE DATABASE CONNECTION
+# Secrets required: SUPABASE_URL, SUPABASE_KEY, GROQ_API_KEY
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
@@ -16,24 +16,24 @@ st.set_page_config(page_title="Feemo AI", page_icon="✨", layout="wide")
 # 3. SILENT DATA SYNC (Load Memory & Recent Activity)
 if "bot_memory" not in st.session_state:
     try:
-        # Load long-term context from user_memory table
+        # Load user context silently from 'user_memory' table
         mem_res = supabase.table("user_memory").select("memory_context").eq("id", 1).execute()
         st.session_state.bot_memory = mem_res.data[0]['memory_context'] if mem_res.data else ""
         
-        # Load the latest 10 chat titles for the sidebar
+        # Load the latest 10 chat titles for the sidebar from 'chat_history' table
         hist_res = supabase.table("chat_history").select("chat_title").order("created_at", desc=True).limit(10).execute()
         st.session_state.recent_activity = [row['chat_title'] for row in hist_res.data] if hist_res.data else []
     except Exception:
         st.session_state.bot_memory = ""
         st.session_state.recent_activity = []
 
-# 4. CHATGPT-STYLE CSS (Three-Line Menu & Clean Layout)
+# 4. CHATGPT-STYLE INTERFACE (Mobile Hamburger Fix)
 st.markdown("""
     <style>
-    /* UI Clean-up */
+    /* HIDE DEFAULT STREAMLIT UI */
     #MainMenu, footer, .stAppToolbar {visibility: hidden;}
     
-    /* REPLACE ARROW WITH THREE LINES (HAMBURGER MENU) */
+    /* 1. REPLACE ARROW WITH THREE LINES (HAMBURGER MENU) */
     button[kind="headerNoPadding"] svg { display: none; }
     button[kind="headerNoPadding"]::after { 
         content: '☰'; 
@@ -51,19 +51,19 @@ st.markdown("""
         height: 45px !important;
     }
 
-    /* DARK THEME & CHATGPT ALIGNMENT */
+    /* 2. DARK THEME & CHATGPT-STYLE ALIGNMENT */
     .stApp { background-color: #0d0d0d; color: #ececf1; }
     section[data-testid="stSidebar"] { 
         background-color: #000000 !important; 
         border-right: 1px solid #2d2d2d !important; 
     }
     
-    /* RECENT ACTIVITY STYLE */
-    .history-label { color: #666; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin: 25px 10px 10px 10px; }
+    /* RECENT ACTIVITY LIST STYLING */
+    .history-label { color: #666; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin: 25px 0 10px 10px; }
     .history-item {
         padding: 12px 15px;
         border-radius: 8px;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
         font-size: 14px;
         color: #d1d1d1;
         white-space: nowrap;
@@ -71,18 +71,18 @@ st.markdown("""
         text-overflow: ellipsis;
         transition: 0.2s;
     }
-    .history-item:hover { background-color: #1a1a1a; cursor: pointer; }
+    .history-item:hover { background-color: #1a1a1a; cursor: default; }
 
-    /* MESSAGE BUBBLES */
+    /* CHAT BUBBLE STYLING */
     [data-testid="stChatMessage"] { border: none !important; padding: 2rem 1rem !important; }
     [data-testid="stChatMessage"]:nth-child(odd) { background-color: #1a1a1a !important; }
 
-    /* CENTERED CHAT BOX */
+    /* CENTERED CONTENT CONTAINER */
     .block-container { max-width: 850px; padding-top: 1rem; }
     </style>
     """, unsafe_allow_html=True)
 
-# 5. SIDEBAR (History List)
+# 5. SIDEBAR (Activity History)
 with st.sidebar:
     st.markdown("<h2 style='color:#c9a84c; margin-left:10px;'>Feemo AI</h2>", unsafe_allow_html=True)
     
@@ -97,9 +97,9 @@ with st.sidebar:
         for activity in st.session_state.recent_activity:
             st.markdown(f"<div class='history-item'>💬 {activity}</div>", unsafe_allow_html=True)
     else:
-        st.sidebar.caption("No recent activity.")
+        st.sidebar.caption("No recent activity found.")
 
-    # Developer Signature
+    # Developer Signature (Bottom)
     st.sidebar.markdown(f"""
         <div style='position: fixed; bottom: 20px; width: 220px; font-size:11px; color:#444; border-top: 1px solid #222; padding-top:10px; margin-left:10px;'>
             ML & AI Engineer<br><b>Muhammad Faheem Riaz</b>
@@ -120,29 +120,29 @@ for msg in st.session_state.messages:
 
 # 7. AI LOGIC & PERMANENT STORAGE
 if prompt := st.chat_input("Message Feemo AI..."):
-    # HISTORY SAVING: Trigger on the first message of a new session
+    # HISTORY SAVING: Only triggers on the first message of a new session
     if len(st.session_state.messages) == 0:
         try:
-            # Create a title from the prompt
+            # Create a title from the first prompt
             title_text = prompt[:35] + "..." if len(prompt) > 35 else prompt
-            # Push to Supabase chat_history table
+            # Push to Supabase 'chat_history' table
             supabase.table("chat_history").insert({"chat_title": title_text}).execute()
-            # Instant update for UI
+            # Instant update for Sidebar list
             st.session_state.recent_activity.insert(0, title_text)
         except Exception:
-            pass 
+            pass # Silent fail to keep UI clean
 
-    # Update UI
+    # Add message to UI
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
     try:
-        # Context Construction (Live Date + Silent Database Memory)
+        # Context Injection: Live Date + Silent Memory Context
         now = datetime.datetime.now().strftime("%B %d, %Y")
         system_rules = f"You are Feemo AI. Today's date is {now}."
         if st.session_state.bot_memory:
-            system_rules += f" User Context: {st.session_state.bot_memory}"
+            system_rules += f" Important context about user: {st.session_state.bot_memory}"
         
         headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
         payload = {
@@ -168,4 +168,4 @@ if prompt := st.chat_input("Message Feemo AI..."):
             st.session_state.messages.append({"role": "assistant", "content": reply})
             
     except Exception as e:
-        st.error("I'm having trouble connecting. Please try again.")
+        st.error("Connection failed. Please check your API key or network.")
