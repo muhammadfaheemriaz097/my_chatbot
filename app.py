@@ -14,7 +14,7 @@ hide_st_style = """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # --- YOUR EXISTING CODE STARTS HERE ---
-st.title("✨ FEEMO AI ✨")
+
 # ... rest of your codeimport streamlit as st
 import requests
 import time
