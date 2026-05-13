@@ -10,22 +10,19 @@ url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
-# 2. APP CONFIG
+# 2. APP CONFIGURATION
 st.set_page_config(page_title="Feemo AI", page_icon="✨", layout="wide")
 
-# 3. PERSISTENT IDENTITY LOGIC (URL-based for Refresh Stability)
-# To keep your ID across refreshes, we will use a URL parameter.
-# If you want to keep your history, always use the URL with your ID.
+# 3. PERSISTENT IDENTITY (URL-based stability)
+# This ensures that refreshing the page doesn't change your ID.
 query_params = st.query_params
 if "id" not in query_params:
-    # Create a new ID only if one doesn't exist in the URL
     new_id = str(uuid.uuid4())[:8]
     st.query_params["id"] = new_id
     user_id = new_id
 else:
     user_id = query_params["id"]
 
-# Store in session state for the code to use
 st.session_state.user_secret_id = user_id
 
 # 4. DATA SYNC (Filtered by User ID)
@@ -34,18 +31,26 @@ if "messages" not in st.session_state:
 if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = None
 
+# Load memory context once
+if "bot_memory" not in st.session_state:
+    try:
+        mem_res = supabase.table("user_memory").select("memory_context").eq("id", 1).execute()
+        st.session_state.bot_memory = mem_res.data[0]['memory_context'] if mem_res.data else ""
+    except:
+        st.session_state.bot_memory = ""
+
+# Fetch only the history linked to this specific URL ID
 try:
-    # Fetch history ONLY for this specific user_id
     hist_res = supabase.table("chat_history")\
         .select("id, chat_title")\
         .eq("user_id", st.session_state.user_secret_id)\
         .order("created_at", desc=True)\
         .limit(10).execute()
     recent_activity = hist_res.data if hist_res.data else []
-except Exception as e:
+except:
     recent_activity = []
 
-# 5. CSS (ChatGPT Style)
+# 5. CHATGPT-STYLE CSS
 st.markdown("""
     <style>
     #MainMenu, footer, .stAppToolbar {visibility: hidden;}
@@ -61,7 +66,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 6. SIDEBAR
+# 6. SIDEBAR (History Loading)
 with st.sidebar:
     st.markdown("<h2 style='color:#c9a84c; margin-left:10px;'>Feemo AI</h2>", unsafe_allow_html=True)
     
@@ -81,8 +86,7 @@ with st.sidebar:
                 st.rerun()
 
     st.sidebar.markdown("---")
-    st.sidebar.caption(f"Your Secret Link ID: {st.session_state.user_secret_id}")
-    st.sidebar.info("Bookmark this URL to keep your history private and persistent!")
+    st.sidebar.caption(f"Persistent ID: {st.session_state.user_secret_id}")
 
 # 7. MAIN CHAT AREA
 st.markdown("<div style='text-align:center;'><h1>✦ FEEMO AI ✦</h1></div>", unsafe_allow_html=True)
@@ -91,7 +95,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 8. AI LOGIC & SAVING
+# 8. AI LOGIC & SAVING MATERIAL
 if prompt := st.chat_input("Message Feemo AI..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -120,4 +124,4 @@ if prompt := st.chat_input("Message Feemo AI..."):
             supabase.table("chat_history").update({"full_history": st.session_state.messages}).eq("id", st.session_state.current_chat_id).execute()
             
     except:
-        st.error("Error.")
+        st.error("Error saving chat.")
