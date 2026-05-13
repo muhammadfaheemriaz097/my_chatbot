@@ -39,6 +39,4 @@ streamlit run app.py
 
 ## 👨‍💻 Author
 
-**Muhammad Faheem Riaz** *ML & AI Engineer* [Your LinkedIn Profile Link]
-
-?
+**Muhammad Faheem Riaz** *ML & AI Engineer* 
