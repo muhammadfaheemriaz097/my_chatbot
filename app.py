@@ -5,19 +5,14 @@ import datetime
 from supabase import create_client
 
 # 1. INITIALIZE SUPABASE
-# These must be set in Streamlit Cloud -> Settings -> Secrets
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 # 2. SET PAGE CONFIG
-st.set_page_config(
-    page_title="Feemo AI", 
-    page_icon="✨", 
-    layout="centered"
-)
+st.set_page_config(page_title="Feemo AI", page_icon="✨", layout="wide")
 
-# 3. LOAD PERSISTENT MEMORY FROM SUPABASE
+# 3. LOAD PERSISTENT MEMORY
 if "bot_memory" not in st.session_state:
     try:
         response = supabase.table("user_memory").select("memory_context").eq("id", 1).execute()
@@ -28,71 +23,86 @@ if "bot_memory" not in st.session_state:
     except Exception:
         st.session_state.bot_memory = ""
 
-# 4. ADVANCED CSS (Mobile Sidebar Fix & Gold Theme)
+# 4. CHATGPT LAYOUT CSS
 st.markdown("""
     <style>
-    /* Hiding specific UI pieces but KEEPING the sidebar toggle active */
+    /* HIDE DEFAULT ELEMENTS */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .stAppToolbar {visibility: hidden;}
     
-    /* THE MOBILE SIDEBAR FIX: Create a visible Gold Toggle Button */
-    button[kind="headerNoPadding"] {
-        background-color: #c9a84c !important;
-        color: #000000 !important;
-        border-radius: 50% !important;
-        margin-left: 10px !important;
-        margin-top: 5px !important;
+    /* 1. CHATGPT THREE-LINE MENU ICON (Mobile & Desktop) */
+    button[kind="headerNoPadding"] svg {
+        display: none; /* Hide default arrow */
+    }
+    button[kind="headerNoPadding"]::after {
+        content: '☰'; /* The Three Lines */
+        font-size: 24px;
+        color: #c9a84c;
         visibility: visible !important;
+        display: block;
+    }
+    button[kind="headerNoPadding"] {
+        background-color: transparent !important;
+        border: 1px solid rgba(201, 168, 76, 0.3) !important;
+        border-radius: 8px !important;
+        padding: 5px 10px !important;
+        margin-left: 15px !important;
     }
 
-    /* Main Theme Colors */
-    .stApp { background-color: #0a0a0a; color: #ffffff; }
+    /* 2. CENTERED CHAT LAYOUT (ChatGPT Style) */
+    .block-container {
+        max-width: 800px;
+        padding-top: 2rem;
+    }
+
+    /* 3. DARK THEME & MESSAGE BUBBLES */
+    .stApp { background-color: #0d0d0d; color: #ececf1; }
+    
+    /* Sidebar Styling */
     section[data-testid="stSidebar"] { 
-        background-color: #111111 !important; 
-        border-right: 1px solid #c9a84c !important; 
+        background-color: #000000 !important; 
+        border-right: 1px solid #2d2d2d !important; 
     }
     
-    /* Input & Chat Styling */
+    /* User Message Bubble */
+    [data-testid="stChatMessage"]:nth-child(even) {
+        background-color: transparent !important;
+    }
+    
+    /* Assistant Message Bubble */
+    [data-testid="stChatMessage"]:nth-child(odd) {
+        background-color: #1a1a1a !important;
+        border-radius: 12px;
+    }
+
+    /* Chat Input Styling */
     .stChatInput input { 
         background-color: #1a1a1a !important; 
         color: #ffffff !important; 
-        border: 1px solid #c9a84c !important; 
-        border-radius: 12px !important; 
-    }
-    .stChatMessage { 
-        background-color: #111111 !important; 
-        border-radius: 12px !important; 
-        border-left: 3px solid #c9a84c !important; 
-        margin-bottom: 12px !important; 
+        border: 1px solid #444 !important; 
+        border-radius: 12px !important;
+        padding: 12px !important;
     }
     
-    /* Gold Headers */
-    h1, h2 { color: #c9a84c !important; font-family: 'Georgia', serif !important; }
+    h1 { color: #ffffff !important; font-weight: 600 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 5. SIDEBAR SECTION
+# 5. SIDEBAR (History & Memory)
 with st.sidebar:
-    # Logo Fallback
-    try:
-        st.image("logo.png", use_container_width=True)
-    except:
-        st.markdown("<h1 style='text-align:center;'>🤖</h1>", unsafe_allow_html=True)
-        
-    st.markdown("<div style='text-align:center;'><h2 style='margin:0;'>Feemo AI</h2><p style='color:#8b6914;font-size:12px;'>Your Smart AI Assistant</p></div>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#c9a84c;'>Feemo AI</h2>", unsafe_allow_html=True)
     st.sidebar.markdown("---")
     
-    # CLOUD MEMORY INTERFACE
-    st.sidebar.markdown("<p style='color:#c9a84c;font-weight:bold;'>🧠 Permanent Memory</p>", unsafe_allow_html=True)
+    st.sidebar.markdown("🧠 **Personalization**")
     user_input_memory = st.sidebar.text_area(
-        "Saved context (available across sessions):",
+        "Memory context:",
         value=st.session_state.bot_memory,
-        height=180,
-        key="cloud_memory"
+        height=150,
+        key="cloud_mem"
     )
 
-    if st.sidebar.button("💾 Save to Cloud"):
+    if st.sidebar.button("💾 Update Memory"):
         try:
             supabase.table("user_memory").upsert({
                 "id": 1, 
@@ -100,43 +110,37 @@ with st.sidebar:
                 "memory_context": user_input_memory
             }).execute()
             st.session_state.bot_memory = user_input_memory
-            st.sidebar.success("Cloud memory updated!")
-        except Exception as e:
-            st.sidebar.error("Failed to connect to Supabase.")
+            st.sidebar.success("Updated!")
+        except:
+            st.sidebar.error("Cloud Error")
 
     st.sidebar.markdown("---")
-    st.sidebar.markdown("<p style='color:#c9a84c;font-weight:bold;'>👤 Created by</p>", unsafe_allow_html=True)
-    st.sidebar.write("Muhammad Faheem Riaz")
-    
-    if st.sidebar.button("🗑️ Clear History"):
+    st.sidebar.caption("Developed by Muhammad Faheem Riaz")
+    if st.sidebar.button("🗑️ New Chat"):
         st.session_state.messages = []
         st.rerun()
 
-# 6. MAIN CHAT INTERFACE
-st.markdown("<div style='text-align:center; padding-top:10px;'><h1 style='font-size:42px; letter-spacing:2px;'>✦ FEEMO AI ✦</h1><p style='color:#8b6914;'>Fast & Intelligent</p></div>", unsafe_allow_html=True)
+# 6. MAIN CHAT AREA
+st.markdown("<div style='text-align:center;'><h1 style='font-size:32px;'>✦ FEEMO AI ✦</h1></div>", unsafe_allow_html=True)
 
 API_KEY = st.secrets["GROQ_API_KEY"]
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Display Messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
-        st.markdown(f"<p style='color:#ffffff;'>{msg['content']}</p>", unsafe_allow_html=True)
+        st.markdown(msg["content"])
 
-# 7. CHAT LOGIC (Date + Persistent Memory)
-if prompt := st.chat_input("✦ Ask Feemo AI anything..."):
+# 7. CHAT LOGIC
+if prompt := st.chat_input("Message Feemo AI..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(f"<p style='color:#ffffff;'>{prompt}</p>", unsafe_allow_html=True)
+        st.markdown(prompt)
     
     try:
-        # Get live date
-        today = datetime.datetime.now().strftime("%A, %B %d, %Y")
-        
-        # Inject context into the brain
-        system_rules = f"You are Feemo AI. Today is {today}."
-        if st.session_state.bot_memory:
-            system_rules += f" Context about the user: {st.session_state.bot_memory}"
+        today = datetime.datetime.now().strftime("%B %d, %Y")
+        system_rules = f"You are Feemo AI. Today is {today}. Context: {st.session_state.bot_memory}"
         
         headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
         payload = {
@@ -146,22 +150,18 @@ if prompt := st.chat_input("✦ Ask Feemo AI anything..."):
         }
         
         with st.chat_message("assistant"):
-            with st.spinner("✦ Processing..."):
-                response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-                result = response.json()
-                
-                if "choices" in result:
-                    reply = result["choices"][0]["message"]["content"]
-                    
-                    # Typing effect
-                    placeholder = st.empty()
-                    typed = ""
-                    for char in reply:
-                        typed += char
-                        placeholder.markdown(f"<p style='color:#c9a84c;'>{typed}▌</p>", unsafe_allow_html=True)
-                        time.sleep(0.005)
-                    placeholder.markdown(f"<p style='color:#ffffff;'>{reply}</p>", unsafe_allow_html=True)
-                    
-                    st.session_state.messages.append({"role": "assistant", "content": reply})
+            placeholder = st.empty()
+            response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+            reply = response.json()["choices"][0]["message"]["content"]
+            
+            # Simplified typing effect for ChatGPT feel
+            full_response = ""
+            for char in reply:
+                full_response += char
+                placeholder.markdown(full_response + "●")
+                time.sleep(0.005)
+            placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            
     except Exception as e:
-        st.error(f"Error connecting to AI: {e}")
+        st.error("Connection lost.")
