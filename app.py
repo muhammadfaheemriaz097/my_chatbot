@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import time
 import datetime
+import uuid
 from supabase import create_client
 
 # 1. INITIALIZE DATABASE
@@ -12,20 +13,32 @@ supabase = create_client(url, key)
 # 2. APP CONFIG
 st.set_page_config(page_title="Feemo AI", page_icon="✨", layout="wide")
 
-# 3. INITIALIZE SESSION STATES
+# 3. AUTOMATIC IDENTITY (Hidden User ID)
+if "user_secret_id" not in st.session_state:
+    # Create a unique ID for this browser session
+    st.session_state.user_secret_id = str(uuid.uuid4())[:8]
+
+# 4. DATA SYNC (Filtered by the Unique User ID)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = None
 
-# 4. SILENT DATA LOAD (Load Memory & Recent Activity)
-try:
-    if "bot_memory" not in st.session_state:
+# Load memory once
+if "bot_memory" not in st.session_state:
+    try:
         mem_res = supabase.table("user_memory").select("memory_context").eq("id", 1).execute()
         st.session_state.bot_memory = mem_res.data[0]['memory_context'] if mem_res.data else ""
-    
-    # Always refresh the sidebar list from Supabase
-    hist_res = supabase.table("chat_history").select("id, chat_title").order("created_at", desc=True).limit(10).execute()
+    except:
+        st.session_state.bot_memory = ""
+
+# Fetch history ONLY for this specific browser ID
+try:
+    hist_res = supabase.table("chat_history")\
+        .select("id, chat_title")\
+        .eq("user_id", st.session_state.user_secret_id)\
+        .order("created_at", desc=True)\
+        .limit(10).execute()
     recent_activity = hist_res.data if hist_res.data else []
 except:
     recent_activity = []
@@ -41,13 +54,12 @@ st.markdown("""
     .history-label { color: #666; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin: 25px 0 10px 10px; }
     div[data-testid="stSidebar"] button { background-color: transparent !important; color: #d1d1d1 !important; border: none !important; text-align: left !important; display: block !important; width: 100% !important; padding: 10px 15px !important; }
     div[data-testid="stSidebar"] button:hover { background-color: #1a1a1a !important; color: #ffffff !important; }
-    [data-testid="stChatMessage"] { border: none !important; padding: 2rem 1rem !important; }
     [data-testid="stChatMessage"]:nth-child(odd) { background-color: #1a1a1a !important; }
     .block-container { max-width: 850px; padding-top: 1rem; }
     </style>
     """, unsafe_allow_html=True)
 
-# 6. SIDEBAR (With Loading Logic)
+# 6. SIDEBAR
 with st.sidebar:
     st.markdown("<h2 style='color:#c9a84c; margin-left:10px;'>Feemo AI</h2>", unsafe_allow_html=True)
     
@@ -56,21 +68,18 @@ with st.sidebar:
         st.session_state.current_chat_id = None
         st.rerun()
     
-    st.markdown("<div class='history-label'>RECENT ACTIVITY</div>", unsafe_allow_html=True)
+    st.markdown("<div class='history-label'>MY RECENT ACTIVITY</div>", unsafe_allow_html=True)
     
     for chat in recent_activity:
         if st.sidebar.button(f"💬 {chat['chat_title'][:25]}...", key=f"btn_{chat['id']}", use_container_width=True):
-            # --- THIS IS THE MATERIAL LOADING PART ---
-            try:
-                # Fetch messages for this specific chat ID
-                msg_res = supabase.table("chat_history").select("full_history").eq("id", chat['id']).execute()
-                if msg_res.data:
-                    # Restore the chat material
-                    st.session_state.messages = msg_res.data[0]['full_history']
-                    st.session_state.current_chat_id = chat['id']
-                    st.rerun()
-            except:
-                st.sidebar.error("Could not load material.")
+            msg_res = supabase.table("chat_history").select("full_history").eq("id", chat['id']).execute()
+            if msg_res.data:
+                st.session_state.messages = msg_res.data[0]['full_history']
+                st.session_state.current_chat_id = chat['id']
+                st.rerun()
+
+    st.sidebar.markdown("---")
+    st.sidebar.caption(f"Session ID: {st.session_state.user_secret_id}")
 
 # 7. MAIN CHAT AREA
 st.markdown("<div style='text-align:center;'><h1>✦ FEEMO AI ✦</h1></div>", unsafe_allow_html=True)
@@ -79,19 +88,16 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 8. AI LOGIC & SAVING MATERIAL
+# 8. AI LOGIC & SAVING PRIVATE MATERIAL
 if prompt := st.chat_input("Message Feemo AI..."):
-    # Add user message to state
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # Get AI Response
     try:
         now = datetime.datetime.now().strftime("%B %d, %Y")
-        system_rules = f"You are Feemo AI. Today is {now}. Context: {st.session_state.bot_memory}"
         headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
-        payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": system_rules}] + st.session_state.messages}
+        payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": f"You are Feemo AI. Mode: Private."}] + st.session_state.messages}
         
         with st.chat_message("assistant"):
             res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
@@ -99,19 +105,16 @@ if prompt := st.chat_input("Message Feemo AI..."):
             st.markdown(reply)
             st.session_state.messages.append({"role": "assistant", "content": reply})
         
-        # --- SAVE THE "MATERIAL" TO THE DATABASE ---
+        # SAVE WITH THE UNIQUE USER_ID
         if st.session_state.current_chat_id is None:
-            # Create new entry if it's the first message
             new_chat = supabase.table("chat_history").insert({
                 "chat_title": prompt[:30],
-                "full_history": st.session_state.messages
+                "full_history": st.session_state.messages,
+                "user_id": st.session_state.user_secret_id 
             }).execute()
             st.session_state.current_chat_id = new_chat.data[0]['id']
         else:
-            # Update existing entry with the new material
-            supabase.table("chat_history").update({
-                "full_history": st.session_state.messages
-            }).eq("id", st.session_state.current_chat_id).execute()
+            supabase.table("chat_history").update({"full_history": st.session_state.messages}).eq("id", st.session_state.current_chat_id).execute()
             
     except:
-        st.error("Connection lost.")
+        st.error("Error.")
