@@ -101,4 +101,76 @@ with st.sidebar:
 
     # Developer Signature
     st.sidebar.markdown(f"""
-        <div style='position: fixed; bottom: 20px; width: 220px; font-size:11px;
+        <div style='position: fixed; bottom: 20px; width: 220px; font-size:11px; color:#444; border-top: 1px solid #222; padding-top:10px; margin-left:10px;'>
+            ML & AI Engineer<br><b>Muhammad Faheem Riaz</b>
+        </div>
+    """, unsafe_allow_html=True)
+
+# 6. MAIN CHAT INTERFACE
+st.markdown("<div style='text-align:center;'><h1>✦ FEEMO AI ✦</h1></div>", unsafe_allow_html=True)
+
+API_KEY = st.secrets["GROQ_API_KEY"]
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Show current session chat
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# 7. AI LOGIC & INSTANT HISTORY SYNC
+if prompt := st.chat_input("Message Feemo AI..."):
+    # If starting a new session, save the title to Supabase and Update UI
+    if len(st.session_state.messages) == 0:
+        try:
+            title_text = prompt[:35] + "..." if len(prompt) > 35 else prompt
+            
+            # 1. Push to Database
+            supabase.table("chat_history").insert({"chat_title": title_text}).execute()
+            
+            # 2. Instant Local Update (So you see it immediately)
+            if "recent_activity" not in st.session_state:
+                st.session_state.recent_activity = []
+            st.session_state.recent_activity.insert(0, title_text)
+            
+        except Exception as e:
+            # If there's an error with your Supabase table, it will show here
+            st.sidebar.error(f"Sync Error: {e}")
+
+    # Add user message to UI
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    try:
+        # Construct System Message (Date + Memory)
+        now = datetime.datetime.now().strftime("%B %d, %Y")
+        system_rules = f"You are Feemo AI. Today's date is {now}."
+        if st.session_state.bot_memory:
+            system_rules += f" User Context: {st.session_state.bot_memory}"
+        
+        headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+        payload = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [{"role": "system", "content": system_rules}] + st.session_state.messages,
+            "temperature": 0.6
+        }
+        
+        with st.chat_message("assistant"):
+            placeholder = st.empty()
+            response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+            response.raise_for_status()
+            reply = response.json()["choices"][0]["message"]["content"]
+            
+            # Smooth Typing Animation
+            full_text = ""
+            for char in reply:
+                full_text += char
+                placeholder.markdown(full_text + "▌")
+                time.sleep(0.003)
+            placeholder.markdown(full_text)
+            
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            
+    except Exception:
+        st.error("I'm having trouble connecting right now.")
