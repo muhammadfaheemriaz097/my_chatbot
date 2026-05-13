@@ -24,12 +24,18 @@ hide_st_style = """
             .stChatMessage { background-color: #1a1a1a !important; border-radius: 12px !important; padding: 15px !important; border-left: 3px solid #c9a84c !important; margin-bottom: 10px !important; }
             .stChatMessage p { color: #ffffff !important; font-size: 16px !important; line-height: 1.8 !important; font-weight: 500 !important; }
             section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #c9a84c !important; }
-            h1 { color: #c9a84c !important; font-family: Georgia, serif !important; letter-spacing: 2px !important; }
-            p { color: #ffffff !important; font-size: 15px !important; }
-            ::-webkit-scrollbar { width: 4px; }
-            ::-webkit-scrollbar-thumb { background: #c9a84c; border-radius: 4px; }
-            </style>
-            """
+        # --- SIDEBAR WITH DIRECT LINK ---
+with st.sidebar:
+    # This link points directly to your GitHub file
+    logo_url = "https://raw.githubusercontent.com/muhammadfaheemriaz097/my_chatbot/main/logo.png"
+    st.image(logo_url, use_container_width=True)
+    
+    st.markdown("""
+    <div style='text-align:center;padding:0 0 20px 0;'>
+    <h2 style='color:#c9a84c;margin:0;'>Feemo AI</h2>
+    <p style='color:#8b6914;font-size:12px;'>Your Smart AI Assistant</p>
+    </div>
+    """, unsafe_allow_html=True)
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # 3. SIDEBAR WITH NEW LOGO
