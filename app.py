@@ -27,7 +27,7 @@ if prompt := st.chat_input("Ask Feemo AI anything..."):
 
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-2.0-flash")
 
             history = []
             for msg in st.session_state.messages[:-1]:
