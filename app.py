@@ -1,8 +1,8 @@
 import streamlit as st
 import anthropic
 
-st.set_page_config(page_title="Claude Chatbot", page_icon="🤖")
-st.title("🤖 Claude Chatbot")
+st.set_page_config(page_title="Feemo AI", page_icon="🤖")
+st.title("🤖 Feemo AI")
 
 api_key = st.sidebar.text_input("Anthropic API Key", type="password", placeholder="sk-ant-...")
 
