@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 from groq import Groq
 
@@ -28,14 +29,20 @@ if prompt := st.chat_input("Ask Feemo AI anything..."):
         try:
             client = Groq(api_key=api_key)
 
+            safe_messages = []
+            for msg in st.session_state.messages:
+                safe_content = msg["content"].encode("utf-8", errors="ignore").decode("utf-8")
+                safe_messages.append({"role": msg["role"], "content": safe_content})
+
             with st.chat_message("assistant"):
                 with st.spinner("Feemo AI is thinking..."):
                     response = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=st.session_state.messages,
+                        messages=safe_messages,
                         max_tokens=1000
                     )
                     reply = response.choices[0].message.content
+                    reply = reply.encode("utf-8", errors="ignore").decode("utf-8")
                     st.markdown(reply)
 
             st.session_state.messages.append({"role": "assistant", "content": reply})
