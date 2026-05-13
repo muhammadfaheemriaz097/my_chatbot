@@ -1,7 +1,5 @@
-
 import streamlit as st
 import requests
-import json
 
 st.set_page_config(page_title="Feemo AI", page_icon="🤖")
 st.title("🤖 Feemo AI")
@@ -47,10 +45,18 @@ if prompt := st.chat_input("Ask Feemo AI anything..."):
                         json=data
                     )
                     result = response.json()
-                    reply = result["choices"][0]["message"]["content"]
-                    st.markdown(reply)
 
-            st.session_state.messages.append({"role": "assistant", "content": reply})
+                    if "choices" in result:
+                        reply = result["choices"][0]["message"]["content"]
+                        st.markdown(reply)
+                        st.session_state.messages.append({"role": "assistant", "content": reply})
+                    elif "error" in result:
+                        st.error(f"Groq Error: {result['error']['message']}")
+                        st.session_state.messages.pop()
+                    else:
+                        st.error(f"Unexpected response: {result}")
+                        st.session_state.messages.pop()
 
         except Exception as e:
             st.error(f"Error: {str(e)}")
+            st.session_state.messages.pop()
