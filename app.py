@@ -12,156 +12,108 @@ supabase = create_client(url, key)
 # 2. SET PAGE CONFIG
 st.set_page_config(page_title="Feemo AI", page_icon="✨", layout="wide")
 
-# 3. LOAD PERSISTENT MEMORY
+# 3. LOAD DATA (Memory + Recent Activity)
 if "bot_memory" not in st.session_state:
     try:
-        response = supabase.table("user_memory").select("memory_context").eq("id", 1).execute()
-        if response.data:
-            st.session_state.bot_memory = response.data[0]['memory_context']
-        else:
-            st.session_state.bot_memory = ""
-    except Exception:
+        # Load Memory
+        mem_resp = supabase.table("user_memory").select("memory_context").eq("id", 1).execute()
+        st.session_state.bot_memory = mem_resp.data[0]['memory_context'] if mem_resp.data else ""
+        
+        # Load Recent Activity (Last 10 prompts)
+        hist_resp = supabase.table("chat_history").select("user_prompt").order("created_at", desc=True).limit(10).execute()
+        st.session_state.recent_activity = [item['user_prompt'] for item in hist_resp.data] if hist_resp.data else []
+    except:
         st.session_state.bot_memory = ""
+        st.session_state.recent_activity = []
 
-# 4. CHATGPT LAYOUT CSS
+# 4. CHATGPT STYLE CSS
 st.markdown("""
     <style>
-    /* HIDE DEFAULT ELEMENTS */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .stAppToolbar {visibility: hidden;}
+    #MainMenu, footer, .stAppToolbar {visibility: hidden;}
     
-    /* 1. CHATGPT THREE-LINE MENU ICON (Mobile & Desktop) */
-    button[kind="headerNoPadding"] svg {
-        display: none; /* Hide default arrow */
-    }
-    button[kind="headerNoPadding"]::after {
-        content: '☰'; /* The Three Lines */
-        font-size: 24px;
-        color: #c9a84c;
-        visibility: visible !important;
-        display: block;
-    }
-    button[kind="headerNoPadding"] {
-        background-color: transparent !important;
-        border: 1px solid rgba(201, 168, 76, 0.3) !important;
-        border-radius: 8px !important;
-        padding: 5px 10px !important;
-        margin-left: 15px !important;
-    }
+    /* Hamburger Menu Icon */
+    button[kind="headerNoPadding"] svg { display: none; }
+    button[kind="headerNoPadding"]::after { content: '☰'; font-size: 24px; color: #c9a84c; visibility: visible !important; }
+    button[kind="headerNoPadding"] { background-color: transparent !important; border: 1px solid #333 !important; border-radius: 8px !important; }
 
-    /* 2. CENTERED CHAT LAYOUT (ChatGPT Style) */
-    .block-container {
-        max-width: 800px;
-        padding-top: 2rem;
-    }
-
-    /* 3. DARK THEME & MESSAGE BUBBLES */
+    /* Layout & Colors */
+    .block-container { max-width: 800px; padding-top: 2rem; }
     .stApp { background-color: #0d0d0d; color: #ececf1; }
+    section[data-testid="stSidebar"] { background-color: #000000 !important; border-right: 1px solid #2d2d2d !important; }
     
-    /* Sidebar Styling */
-    section[data-testid="stSidebar"] { 
-        background-color: #000000 !important; 
-        border-right: 1px solid #2d2d2d !important; 
+    /* Recent Activity Links */
+    .activity-link {
+        padding: 8px;
+        color: #8e8ea0;
+        font-size: 14px;
+        border-radius: 5px;
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
-    
-    /* User Message Bubble */
-    [data-testid="stChatMessage"]:nth-child(even) {
-        background-color: transparent !important;
-    }
-    
-    /* Assistant Message Bubble */
-    [data-testid="stChatMessage"]:nth-child(odd) {
-        background-color: #1a1a1a !important;
-        border-radius: 12px;
-    }
-
-    /* Chat Input Styling */
-    .stChatInput input { 
-        background-color: #1a1a1a !important; 
-        color: #ffffff !important; 
-        border: 1px solid #444 !important; 
-        border-radius: 12px !important;
-        padding: 12px !important;
-    }
-    
-    h1 { color: #ffffff !important; font-weight: 600 !important; }
+    .activity-link:hover { background-color: #2d2d2d; color: #fff; }
     </style>
     """, unsafe_allow_html=True)
 
-# 5. SIDEBAR (History & Memory)
+# 5. SIDEBAR (Activity & Memory)
 with st.sidebar:
     st.markdown("<h2 style='color:#c9a84c;'>Feemo AI</h2>", unsafe_allow_html=True)
-    st.sidebar.markdown("---")
     
-    st.sidebar.markdown("🧠 **Personalization**")
-    user_input_memory = st.sidebar.text_area(
-        "Memory context:",
-        value=st.session_state.bot_memory,
-        height=150,
-        key="cloud_mem"
-    )
-
-    if st.sidebar.button("💾 Update Memory"):
-        try:
-            supabase.table("user_memory").upsert({
-                "id": 1, 
-                "user_name": "Faheem", 
-                "memory_context": user_input_memory
-            }).execute()
-            st.session_state.bot_memory = user_input_memory
-            st.sidebar.success("Updated!")
-        except:
-            st.sidebar.error("Cloud Error")
-
-    st.sidebar.markdown("---")
-    st.sidebar.caption("Developed by Muhammad Faheem Riaz")
-    if st.sidebar.button("🗑️ New Chat"):
+    if st.sidebar.button("+ New Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-# 6. MAIN CHAT AREA
-st.markdown("<div style='text-align:center;'><h1 style='font-size:32px;'>✦ FEEMO AI ✦</h1></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("🕒 **Recent Activity**")
+    for activity in st.session_state.recent_activity:
+        # Show first 25 characters of recent prompts
+        st.markdown(f"<div class='activity-link'>💬 {activity[:25]}...</div>", unsafe_allow_html=True)
 
-API_KEY = st.secrets["GROQ_API_KEY"]
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("🧠 **Memory**")
+    user_input_memory = st.sidebar.text_area("Context:", value=st.session_state.bot_memory, height=100)
+    if st.sidebar.button("💾 Save Memory"):
+        supabase.table("user_memory").upsert({"id": 1, "memory_context": user_input_memory}).execute()
+        st.rerun()
+
+# 6. MAIN CHAT
+st.markdown("<div style='text-align:center;'><h1>✦ FEEMO AI ✦</h1></div>", unsafe_allow_html=True)
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display Messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 7. CHAT LOGIC
+# 7. LOGIC: SAVE TO HISTORY ON SEND
 if prompt := st.chat_input("Message Feemo AI..."):
+    # SAVE TO SUPABASE IMMEDIATELY
+    try:
+        supabase.table("chat_history").insert({"user_prompt": prompt}).execute()
+    except:
+        pass
+    
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
+    # API CALL
     try:
         today = datetime.datetime.now().strftime("%B %d, %Y")
         system_rules = f"You are Feemo AI. Today is {today}. Context: {st.session_state.bot_memory}"
         
-        headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+        headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
         payload = {
             "model": "llama-3.3-70b-versatile",
-            "messages": [{"role": "system", "content": system_rules}] + st.session_state.messages,
-            "max_tokens": 1024
+            "messages": [{"role": "system", "content": system_rules}] + st.session_state.messages
         }
         
         with st.chat_message("assistant"):
-            placeholder = st.empty()
             response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
             reply = response.json()["choices"][0]["message"]["content"]
-            
-            # Simplified typing effect for ChatGPT feel
-            full_response = ""
-            for char in reply:
-                full_response += char
-                placeholder.markdown(full_response + "●")
-                time.sleep(0.005)
-            placeholder.markdown(full_response)
+            st.markdown(reply)
             st.session_state.messages.append({"role": "assistant", "content": reply})
-            
-    except Exception as e:
-        st.error("Connection lost.")
+    except:
+        st.error("Error connecting to AI.")
