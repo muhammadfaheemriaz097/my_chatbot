@@ -48,7 +48,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 4. SESSION STATE INITIALIZATION
+# 4. SESSION STATE & DEEP RECOVERY
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "welcome_shown" not in st.session_state:
@@ -58,12 +58,23 @@ if "messages" not in st.session_state:
 if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = None
 
-# 5. THE HARD-GATE AUTHENTICATION
+# SILENT RECOVERY: Check Supabase if session exists before showing login
+if not st.session_state.authenticated:
+    try:
+        current_session = supabase.auth.get_session()
+        if current_session and current_session.user:
+            st.session_state.user_secret_id = current_session.user.id
+            st.session_state.first_name = current_session.user.user_metadata.get("first_name", "User")
+            st.session_state.authenticated = True
+    except:
+        pass
+
+# 5. HARD-GATE LOGIN
 if not st.session_state.authenticated:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     
     auth_msg = st.empty()
-    tab1, tab2, tab3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
+    tab1, tab2 = st.tabs(["SIGN IN", "CREATE ACCOUNT"])
     
     with tab1:
         with st.form("login_form"):
@@ -77,7 +88,7 @@ if not st.session_state.authenticated:
                         st.session_state.first_name = res.user.user_metadata.get("first_name", "User")
                         st.session_state.authenticated = True
                         auth_msg.success("Verified! Entering Workspace...")
-                        time.sleep(0.6)
+                        time.sleep(0.5)
                         st.rerun()
                     else:
                         auth_msg.error("Invalid credentials.")
@@ -94,23 +105,21 @@ if not st.session_state.authenticated:
                 if n_pass == c_pass and len(n_pass) >= 6:
                     try:
                         supabase.auth.sign_up({"email": n_email, "password": n_pass, "options": {"data": {"first_name": n_name}}})
-                        auth_msg.success("Registration Sent! Check your email to verify.")
+                        auth_msg.success("Verification link sent! Check your inbox.")
                     except:
-                        auth_msg.error("Account already exists or error occurred.")
+                        auth_msg.error("Registration failed or account exists.")
                 else:
-                    st.warning("Password error (Min 6 chars / Match).")
-    
-    # PHYSICAL BARRIER: Nothing past this point runs unless logged in.
+                    st.warning("Password match error (min 6 chars).")
     st.stop()
 
-# --- 6. PROTECTED APPLICATION CONTENT (The "Else" Logic) ---
+# --- 6. PROTECTED APPLICATION LOGIC ---
 else:
-    # POST-LOGIN UI
+    # WELCOME NOTIFICATION
     if not st.session_state.welcome_shown:
         st.toast(f"🚀 Welcome back, {st.session_state.first_name}!", icon="✨")
         st.session_state.welcome_shown = True
 
-    # SIDEBAR & KNOWLEDGE BASE
+    # SIDEBAR: KNOWLEDGE BASE & HISTORY
     with st.sidebar:
         st.markdown("<h2 style='color:#c9a84c;'>Feemo AI</h2>", unsafe_allow_html=True)
         st.caption(f"👤 {st.session_state.first_name}")
@@ -124,7 +133,8 @@ else:
             try:
                 reader = PyPDF2.PdfReader(pdf_file)
                 for i in range(min(len(reader.pages), 10)):
-                    pdf_text += reader.pages[i].extract_text() + "\n"
+                    extracted = reader.pages[i].extract_text()
+                    if extracted: pdf_text += extracted + "\n"
                 st.success("Knowledge Synced!")
             except:
                 st.error("PDF Parsing failed.")
@@ -135,7 +145,7 @@ else:
             st.session_state.current_chat_id = None
             st.rerun()
 
-        # Load History (Only runs if authenticated is true)
+        # Load Recent History
         try:
             hist = supabase.table("chat_history").select("id, chat_title").eq("user_id", st.session_state.user_secret_id).order("created_at", desc=True).limit(5).execute()
             for chat in hist.data:
@@ -153,15 +163,15 @@ else:
             st.session_state.welcome_shown = False
             st.rerun()
 
-    # MAIN INTERFACE
+    # MAIN INTERFACE (Logo Only)
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
-    # Render Chat History
+    # Render History
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # AI ENGINE
+    # AI ENGINE (RAG Enabled)
     if prompt := st.chat_input("Message Feemo AI..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -171,7 +181,7 @@ else:
             sys_msg = f"You are Feemo AI. Professional helper to {st.session_state.first_name}, an ML & AI Engineer."
             if pdf_text:
                 sys_msg += f"\n\nContext from PDF:\n{pdf_text[:7000]}"
-                sys_msg += "\n\nAnswer questions using this context first."
+                sys_msg += "\n\nAnswer using the PDF context first. If not found, use general knowledge but mention it."
 
             headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
             payload = {
@@ -185,7 +195,7 @@ else:
                 st.markdown(reply)
                 st.session_state.messages.append({"role": "assistant", "content": reply})
             
-            # Save Logic
+            # Persistence
             if st.session_state.current_chat_id is None:
                 new_c = supabase.table("chat_history").insert({"chat_title": prompt[:30], "full_history": st.session_state.messages, "user_id": st.session_state.user_secret_id}).execute()
                 st.session_state.current_chat_id = new_c.data[0]['id']
