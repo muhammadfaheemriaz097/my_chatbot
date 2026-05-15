@@ -10,18 +10,17 @@ try:
     key = st.secrets["SUPABASE_KEY"]
     supabase = create_client(url, key)
 except:
-    st.error("Missing Secrets: Check SUPABASE_URL and SUPABASE_KEY in Streamlit.")
+    st.error("Missing Secrets: Check SUPABASE_URL and SUPABASE_KEY.")
     st.stop()
 
 # 2. APP CONFIG
 st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide")
 
-# 3. GEMINI BRANDING (CSS)
+# 3. CSS BRANDING (Gemini Aesthetic)
 st.markdown("""
     <style>
     #MainMenu, footer {visibility: hidden !important;}
     .stApp { background-color: #0e0e10; color: #ececf1; }
-    .block-container { max-width: 850px; padding-top: 2rem !important; margin: auto; }
     .logo-container { display: flex; justify-content: center; align-items: center; margin-bottom: 20px; }
     .logo-text {
         font-size: 55px; font-weight: 800; letter-spacing: -2px; margin: 0;
@@ -33,44 +32,45 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 4. ROBUST AUTH CHECK
-def get_authenticated_user():
-    """Forces a refresh to catch the session after the redirect."""
+# 4. FORCED AUTHENTICATION ENGINE
+def force_session_sync():
+    """Forces the app to acknowledge the login session after a redirect."""
     try:
-        # Check standard user
-        user_res = supabase.auth.get_user()
-        if user_res and user_res.user:
-            return user_res.user
+        # Check standard user status
+        res = supabase.auth.get_user()
+        if res and res.user:
+            return res.user
         
-        # Check for session in URL hash/storage
-        session_res = supabase.auth.get_session()
-        if session_res and session_res.session:
-            return session_res.session.user
+        # Backup: Check raw session
+        sess = supabase.auth.get_session()
+        if sess and sess.session:
+            return sess.session.user
     except:
         pass
     return None
 
-# Check identity
-active_user = get_authenticated_user()
+# Check for user immediately on load
+active_user = force_session_sync()
 
 # 5. SIDEBAR
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
     if active_user:
-        name = active_user.user_metadata.get("full_name") or active_user.user_metadata.get("first_name", "Engineer")
-        st.write(f"👤 **{name}**")
-        if st.button("Logout", use_container_width=True):
+        u_name = active_user.user_metadata.get("full_name") or active_user.user_metadata.get("first_name", "User")
+        st.write(f"Logged in: **{u_name}**")
+        if st.button("Sign Out", use_container_width=True):
             supabase.auth.sign_out()
             st.rerun()
 
-# 6. LOGIC GATE
+# 6. MAIN APPLICATION FLOW
 if not active_user:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.warning("Authentication Required to open Chat.")
+    
+    st.info("The workspace is locked. Please sign in to activate the AI engine.")
     
     try:
-        # NOTICE: Added the slash '/' at the end to match your screenshot
-        auth_info = supabase.auth.sign_in_with_oauth({
+        # Generate OAuth URL with the EXACT slash from your screenshot
+        auth_data = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
                 "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
@@ -78,26 +78,33 @@ if not active_user:
             }
         })
         
-        if auth_info and auth_info.url:
-            st.link_button("🚀 Continue with Google", auth_info.url, use_container_width=True)
-            st.caption("URL configured to match Supabase Site URL.")
+        if auth_data and auth_data.url:
+            st.link_button("Continue with Google 🌐", auth_data.url, use_container_width=True)
             
+            # If the user is returning from a redirect but 'active_user' is still None
+            # we show a "Connecting" spinner and force a rerun to catch the cookie.
+            if "#access_token" in str(st.context.headers):
+                with st.spinner("Synchronizing Identity..."):
+                    time.sleep(2)
+                    st.rerun()
+                    
     except Exception as e:
-        st.error(f"Config Error: {e}")
+        st.error(f"Handshake configuration error: {e}")
     st.stop()
 
-# 7. WORKSPACE (THE OPEN CHAT)
+# 7. CHAT WORKSPACE (THE "SOLVED" STATE)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.success(f"Welcome, {active_user.user_metadata.get('full_name', 'Engineer')}")
+    st.success(f"Connection established for {active_user.email}")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Simple UI Loop
+    # UI for history
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
 
+    # Input logic
     if prompt := st.chat_input("Ask Feemo..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
@@ -113,4 +120,4 @@ else:
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
         except:
-            st.error("AI Error.")
+            st.error("The AI engine is currently unreachable.")
