@@ -25,26 +25,24 @@ st.set_page_config(
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "messages" not in st.session_state: st.session_state.messages = []
 if "first_name" not in st.session_state: st.session_state.first_name = "Engineer"
+if "user_id" not in st.session_state: st.session_state.user_id = None
 
 # 4. THE INTERCEPTOR & SESSION RECOVERY
 def sync_identity():
     """Forces the app to exchange the Google code for a session immediately."""
     try:
-        # Check for the '?code=' parameter from the OAuth redirect
         params = st.query_params
         if "code" in params:
-            # Exchange code for a real session token
             supabase.auth.get_session()
-            # Clear the URL to prevent loops
             st.query_params.clear()
             st.session_state.authenticated = True
             st.rerun()
 
-        # Standard recovery for page refreshes using server-side check
         res = supabase.auth.get_user()
         if res and res.user:
             if not st.session_state.authenticated:
                 st.session_state.authenticated = True
+                st.session_state.user_id = res.user.id
                 meta = res.user.user_metadata or {}
                 st.session_state.first_name = meta.get("full_name") or meta.get("first_name") or res.user.email.split("@")[0]
                 return True
@@ -52,10 +50,38 @@ def sync_identity():
         pass
     return False
 
-# Run the identity check immediately on every script run
 sync_identity()
 
-# 5. GEMINI-STYLE UI BRANDING (CSS)
+# 5. DATABASE HISTORY UTILITIES
+def load_chat_history():
+    """Fetches past chat logs from the Supabase backend."""
+    if not st.session_state.user_id:
+        return []
+    try:
+        # Queries your existing table for the last 5 active chat rows
+        response = supabase.table("chat_history")\
+            .select("*")\
+            .eq("user_id", st.session_state.user_id)\
+            .order("created_at", desc=True)\
+            .limit(5)\
+            .execute()
+        return response.data if response else []
+    except:
+        return []
+
+def save_chat_message(role, content):
+    """Commits a single message node directly to the database layer."""
+    if st.session_state.user_id:
+        try:
+            message_payload = {"role": role, "content": content}
+            supabase.table("chat_history").insert({
+                "user_id": st.session_state.user_id,
+                "message": message_payload
+            }).execute()
+        except:
+            pass
+
+# 6. GEMINI-STYLE UI BRANDING (CSS)
 st.markdown("""
     <style>
     #MainMenu, footer {visibility: hidden !important;}
@@ -75,36 +101,58 @@ st.markdown("""
     section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #2d2d2d !important; }
     .stForm { border: 1px solid #2d2d2d !important; background-color: #171717; border-radius: 15px !important; }
     .stChatMessage p { color: #ffffff !important; font-size: 15px !important; line-height: 1.8 !important; }
+    
+    /* HISTORY BUTTONS */
+    .history-btn { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
     """, unsafe_allow_html=True)
 
-# 6. SIDEBAR
+# 7. SIDEBAR (NOW WITH RECENT CHATS)
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
     if st.session_state.authenticated:
         st.markdown(f"<p style='color:#ffffff;'>👤 <b>{st.session_state.first_name}</b></p>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        # --- RESTORED RECENT CHATS SECTION ---
+        st.markdown("<p style='color:#888888; font-size:12px; font-weight:bold;'>RECENT CHATS</p>", unsafe_allow_html=True)
+        recent_chats = load_chat_history()
+        
+        if recent_chats:
+            for chat in recent_chats:
+                # Extract message text preview safely
+                msg_data = chat.get("message", {})
+                preview = msg_data.get("content", "Empty conversation")[:25] + "..."
+                
+                # Render historical snippet as an interactive layout item
+                if st.button(f"💬 {preview}", key=f"hist_{chat['id']}", use_container_width=True):
+                    # When clicked, load this historical node directly into current viewing state
+                    st.toast("Loading conversation history...")
+                    if msg_data:
+                        st.session_state.messages = [msg_data]
+                        st.rerun()
+        else:
+            st.caption("No recent logs found.")
+        
         st.markdown("---")
         if st.button("Logout", use_container_width=True):
             try:
                 supabase.auth.sign_out()
             except:
                 pass
-            # Wipe everything to force login tabs to reappear
             for k in list(st.session_state.keys()): 
                 del st.session_state[k]
             st.rerun()
     else:
         st.info("Log in to activate workspace.")
 
-# 7. LOGIC GATE: LOGIN PAGE (SHOWS TABS IF NOT LOGGED IN)
+# 8. LOGIC GATE: LOGIN PAGE
 if not st.session_state.authenticated:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     
-    # Restored Tabs
     t1, t2, t3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
 
     with t1:
-        # High-Priority Google OAuth Button
         try:
             google_auth = supabase.auth.sign_in_with_oauth({
                 "provider": "google",
@@ -120,7 +168,6 @@ if not st.session_state.authenticated:
 
         st.markdown("<p style='text-align:center;color:#888;margin:10px 0;'>OR</p>", unsafe_allow_html=True)
 
-        # Standard Email/Password Form
         with st.form("login_form"):
             email = st.text_input("Email")
             password = st.text_input("Password", type="password")
@@ -129,6 +176,7 @@ if not st.session_state.authenticated:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                     if res.user:
                         st.session_state.authenticated = True
+                        st.session_state.user_id = res.user.id
                         meta = res.user.user_metadata or {}
                         st.session_state.first_name = meta.get("full_name") or email.split("@")[0]
                         st.rerun()
@@ -161,14 +209,12 @@ if not st.session_state.authenticated:
                     st.success("Link sent! Check your inbox.")
                 except:
                     st.error("Reset failed. Try again.")
-    
-    st.stop() # Prevents the chat interface from loading underneath the login screen
+    st.stop()
 
-# 8. CHAT WORKSPACE (RUNS ONLY IF AUTHENTICATED)
+# 9. CHAT WORKSPACE
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
-    # Knowledge Base Expandable Section
     with st.expander("📁 PDF Knowledge Base"):
         pdf_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
         pdf_text = ""
@@ -183,7 +229,6 @@ else:
             except:
                 st.error("Could not read PDF.")
 
-    # Welcome message for empty rooms
     if len(st.session_state.messages) == 0:
         st.markdown(f"""
         <div style='text-align:center;padding:40px 20px;'>
@@ -193,16 +238,17 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-    # Render History
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Chat Interaction Block
     if prompt := st.chat_input("Ask Feemo AI anything..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
+        
+        # Capture the user message down to the database row
+        save_chat_message("user", prompt)
             
         try:
             headers = {
@@ -231,7 +277,10 @@ else:
                         reply = res["choices"][0]["message"]["content"]
                         st.markdown(reply)
                         st.session_state.messages.append({"role": "assistant", "content": reply})
+                        
+                        # Capture the assistant message down to the database row
+                        save_chat_message("assistant", reply)
                     else:
-                        st.error(f"Inference error structural issue: {res}")
+                        st.error("Inference structural issue.")
         except Exception as e:
             st.error(f"Node execution failure: {e}")
