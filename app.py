@@ -9,8 +9,8 @@ try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase = create_client(url, key)
-except:
-    st.error("Missing Secrets: Check SUPABASE_URL and SUPABASE_KEY.")
+except Exception as e:
+    st.error(f"Configuration Error: {e}")
     st.stop()
 
 # 2. APP CONFIG
@@ -32,44 +32,43 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 4. FORCED AUTHENTICATION ENGINE
-def force_session_sync():
-    """Forces the app to acknowledge the login session after a redirect."""
+# 4. SESSION AUTHENTICATION ENGINE
+def get_user_status():
+    """Forces a server-side check for an active user session."""
     try:
-        # Check standard user status
-        res = supabase.auth.get_user()
-        if res and res.user:
-            return res.user
+        # Check standard user response
+        user_res = supabase.auth.get_user()
+        if user_res and user_res.user:
+            return user_res.user
         
-        # Backup: Check raw session
-        sess = supabase.auth.get_session()
-        if sess and sess.session:
-            return sess.session.user
+        # Fallback to direct session retrieval
+        session_res = supabase.auth.get_session()
+        if session_res and session_res.session:
+            return session_res.session.user
     except:
         pass
     return None
 
-# Check for user immediately on load
-active_user = force_session_sync()
+# Check identity immediately
+active_user = get_user_status()
 
 # 5. SIDEBAR
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
     if active_user:
-        u_name = active_user.user_metadata.get("full_name") or active_user.user_metadata.get("first_name", "User")
-        st.write(f"Logged in: **{u_name}**")
+        u_name = active_user.user_metadata.get("full_name") or active_user.user_metadata.get("first_name", "Engineer")
+        st.write(f"Logged in as: **{u_name}**")
         if st.button("Sign Out", use_container_width=True):
             supabase.auth.sign_out()
             st.rerun()
 
-# 6. MAIN APPLICATION FLOW
+# 6. MAIN NAVIGATION GATE
 if not active_user:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    
-    st.info("The workspace is locked. Please sign in to activate the AI engine.")
+    st.info("Authentication Required. Click below to continue.")
     
     try:
-        # Generate OAuth URL with the EXACT slash from your screenshot
+        # OAuth Redirect Generator
         auth_data = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
@@ -81,43 +80,47 @@ if not active_user:
         if auth_data and auth_data.url:
             st.link_button("Continue with Google 🌐", auth_data.url, use_container_width=True)
             
-            # If the user is returning from a redirect but 'active_user' is still None
-            # we show a "Connecting" spinner and force a rerun to catch the cookie.
-            if "#access_token" in str(st.context.headers):
-                with st.spinner("Synchronizing Identity..."):
-                    time.sleep(2)
-                    st.rerun()
-                    
+            # This triggers if you've already authenticated and are returning
+            # but Streamlit hasn't updated its internal state yet.
+            if "#access_token" in str(st.query_params):
+                st.toast("Syncing identity...")
+                time.sleep(1)
+                st.rerun()
+                
     except Exception as e:
-        st.error(f"Handshake configuration error: {e}")
+        st.error(f"Login setup failed: {e}")
     st.stop()
 
-# 7. CHAT WORKSPACE (THE "SOLVED" STATE)
+# 7. WORKSPACE (THE "OPENED" CHAT)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.success(f"Connection established for {active_user.email}")
-
+    
+    # Initialize message state
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # UI for history
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
+    # Chat Display
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]): 
+            st.markdown(msg["content"])
 
-    # Input logic
+    # Input Logic
     if prompt := st.chat_input("Ask Feemo..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+        with st.chat_message("user"): 
+            st.markdown(prompt)
         
         try:
+            # Call Groq AI
             headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
             payload = {
                 "model": "llama-3.3-70b-versatile", 
                 "messages": [{"role": "system", "content": "You are Feemo AI."}] + st.session_state.messages
             }
-            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
-            reply = resp["choices"][0]["message"]["content"]
+            res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
+            reply = res["choices"][0]["message"]["content"]
+            
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
         except:
-            st.error("The AI engine is currently unreachable.")
+            st.error("AI node connection lost. Check Groq API settings.")
