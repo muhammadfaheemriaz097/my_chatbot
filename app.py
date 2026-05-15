@@ -17,7 +17,7 @@ except Exception as e:
 # 2. APP CONFIGURATION
 st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide")
 
-# 3. UI STYLING (Gemini Customization)
+# 3. UI STYLING (Gemini Aesthetic)
 st.markdown("""
     <style>
     #MainMenu, footer, .stAppToolbar {visibility: hidden !important;}
@@ -35,7 +35,7 @@ st.markdown("""
     }
     .logo-symbol { color: #4285f4; font-size: 35px; margin-right: 12px; }
 
-    section[data-testid="stSidebar"] { background-color: #000000 !important; border-right: 1px solid #2d2d2d !important; }
+    section[data-testid="stSidebar"] { background-color: #000000 !important; border-right: 1px solid #2d2d2d !important; width: 280px !important; }
     [data-testid="stChatMessage"]:nth-child(odd) { background-color: #1a1a1b !important; border-radius: 10px; }
     .stForm { border: 1px solid #2d2d2d !important; padding: 25px !important; border-radius: 15px !important; background-color: #111111; }
     </style>
@@ -62,7 +62,7 @@ def login_callback():
         else: st.session_state.login_error = "Invalid credentials."
     except: st.session_state.login_error = "Invalid email or password."
 
-# --- 6. THE SIDEBAR (MOVED HERE TO ENSURE IT SHOWS) ---
+# --- 6. THE SIDEBAR (ALWAYS CALLED) ---
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>Feemo AI</h2>", unsafe_allow_html=True)
     if st.session_state.authenticated:
@@ -101,9 +101,10 @@ with st.sidebar:
             for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
     else:
-        st.info("Please sign in to view history.")
+        st.info("Sign in to view workspace history.")
 
-# --- 7. AUTHENTICATION GATE ---
+# --- 7. CONDITIONAL MAIN BODY ---
+# By using if/else instead of st.stop(), we keep the Sidebar visible at all times.
 if not st.session_state.authenticated:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     
@@ -128,8 +129,8 @@ if not st.session_state.authenticated:
             if st.form_submit_button("REGISTER", use_container_width=True):
                 try:
                     supabase.auth.sign_up({"email": n_email, "password": n_pass, "options": {"data": {"first_name": n_name}}})
-                    st.success("Check your email to verify!")
-                except: st.error("Registration failed.")
+                    st.success("Verification link sent!")
+                except: st.error("Signup failed.")
 
     with tab3:
         with st.form("reset_form"):
@@ -139,39 +140,39 @@ if not st.session_state.authenticated:
                     supabase.auth.reset_password_for_email(reset_email)
                     st.success("Recovery email sent!")
                 except: st.error("Error sending link.")
-    st.stop()
+else:
+    # --- PROTECTED APP CONTENT ---
+    if not st.session_state.welcome_shown:
+        st.toast(f"🚀 Welcome back, {st.session_state.first_name}!", icon="✨")
+        st.session_state.welcome_shown = True
 
-# --- 8. PROTECTED APPLICATION ---
-if not st.session_state.welcome_shown:
-    st.toast(f"🚀 Welcome back, {st.session_state.first_name}!", icon="✨")
-    st.session_state.welcome_shown = True
+    st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
-st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]): st.markdown(msg["content"])
-
-if prompt := st.chat_input("Message Feemo AI..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
-    
-    try:
-        sys_msg = f"You are Feemo AI. Assistant to {st.session_state.first_name}, an ML & AI Engineer."
-        if 'pdf_text' in locals() and pdf_text:
-            sys_msg += f"\n\nContext from PDF:\n{pdf_text[:7000]}"
-
-        headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
-        payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": sys_msg}] + st.session_state.messages}
+    if prompt := st.chat_input("Message Feemo AI..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"): st.markdown(prompt)
         
-        with st.chat_message("assistant"):
-            res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
-            reply = res["choices"][0]["message"]["content"]
-            st.markdown(reply)
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-        
-        if st.session_state.current_chat_id is None:
-            new_c = supabase.table("chat_history").insert({"chat_title": prompt[:30], "full_history": st.session_state.messages, "user_id": st.session_state.user_secret_id}).execute()
-            st.session_state.current_chat_id = new_c.data[0]['id']
-        else:
-            supabase.table("chat_history").update({"full_history": st.session_state.messages}).eq("id", st.session_state.current_chat_id).execute()
-    except: st.error("AI Engine Error.")
+        try:
+            sys_msg = f"You are Feemo AI. Assistant to {st.session_state.first_name}, an ML & AI Engineer."
+            if 'pdf_text' in locals() and pdf_text:
+                sys_msg += f"\n\nContext from PDF:\n{pdf_text[:7000]}"
+
+            headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
+            payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": sys_msg}] + st.session_state.messages}
+            
+            with st.chat_message("assistant"):
+                res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
+                reply = res["choices"][0]["message"]["content"]
+                st.markdown(reply)
+                st.session_state.messages.append({"role": "assistant", "content": reply})
+            
+            # Auto-save Logic
+            if st.session_state.current_chat_id is None:
+                new_c = supabase.table("chat_history").insert({"chat_title": prompt[:30], "full_history": st.session_state.messages, "user_id": st.session_state.user_secret_id}).execute()
+                st.session_state.current_chat_id = new_c.data[0]['id']
+            else:
+                supabase.table("chat_history").update({"full_history": st.session_state.messages}).eq("id", st.session_state.current_chat_id).execute()
+        except: st.error("AI Engine Error.")
