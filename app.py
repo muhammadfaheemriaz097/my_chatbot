@@ -28,6 +28,7 @@ if "chat_id" not in st.session_state: st.session_state.chat_id = None
 if "login_error" not in st.session_state: st.session_state.login_error = None
 
 def check_active_session():
+    """Detects if a user has returned from Google Login."""
     try:
         session = supabase.auth.get_session()
         if session and session.user and not st.session_state.authenticated:
@@ -69,16 +70,6 @@ def login_callback():
             st.session_state.authenticated = True
     except: st.session_state.login_error = "Invalid credentials."
 
-def login_with_google():
-    try:
-        # We use the direct URL return to avoid silent redirect blocks
-        res = supabase.auth.sign_in_with_oauth({
-            "provider": "google",
-            "options": {"redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/"}
-        })
-    except Exception as e:
-        st.error(f"Google Error: {e}")
-
 # 6. SIDEBAR
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
@@ -103,9 +94,23 @@ if not st.session_state.authenticated:
             st.text_input("Email", key="e_in")
             st.text_input("Password", type="password", key="p_in")
             st.form_submit_button("LOGIN", use_container_width=True, on_click=login_callback)
+        
         st.markdown("<p style='text-align: center; color: #888;'>OR</p>", unsafe_allow_html=True)
-        if st.button("Continue with Google", use_container_width=True):
-            login_with_google()
+        
+        # FAILSAFE GOOGLE LOGIN
+        try:
+            # We fetch the URL instead of auto-redirecting to avoid browser blocks
+            google_res = supabase.auth.sign_in_with_oauth({
+                "provider": "google",
+                "options": {
+                    "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
+                    "skip_browser_redirect": True 
+                }
+            })
+            if google_res and google_res.url:
+                st.link_button("Continue with Google 🌐", google_res.url, use_container_width=True)
+        except Exception as e:
+            st.error(f"Google setup error: {e}")
             
     with t2:
         with st.form("reg_form"):
@@ -119,13 +124,14 @@ if not st.session_state.authenticated:
                 except: st.error("Signup failed.")
 
     with t3:
-        st.markdown("Enter your email to receive a password reset link.")
+        st.markdown("### Reset Password")
+        st.write("Enter your email to receive a secure reset link.")
         with st.form("reset_form"):
             r_email = st.text_input("Email Address")
             if st.form_submit_button("SEND RESET LINK", use_container_width=True):
                 try:
                     supabase.auth.reset_password_for_email(r_email)
-                    st.success("Reset link sent! Please check your email.")
+                    st.success("Success! Please check your email inbox.")
                 except Exception as e:
                     st.error(f"Error: {e}")
     st.stop()
@@ -142,7 +148,7 @@ else:
             for i in range(min(len(reader.pages), 10)):
                 text = reader.pages[i].extract_text()
                 if text: pdf_text += text + "\n"
-            st.success("Context Uploaded.")
+            st.success("Knowledge context updated.")
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
@@ -154,7 +160,7 @@ else:
         try:
             headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
             sys_msg = f"You are Feemo AI. Professional helper to {st.session_state.first_name}, an ML & AI Engineer."
-            if pdf_text: sys_msg += f"\n\nContext: {pdf_text[:7000]}"
+            if pdf_text: sys_msg += f"\n\nContext from PDF:\n{pdf_text[:7000]}"
 
             payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": sys_msg}] + st.session_state.messages}
             
@@ -164,10 +170,10 @@ else:
                 st.markdown(reply)
                 st.session_state.messages.append({"role": "assistant", "content": reply})
             
-            # History Save
+            # Save History
             if st.session_state.chat_id is None:
                 new_c = supabase.table("chat_history").insert({"chat_title": prompt[:25], "full_history": st.session_state.messages, "user_id": st.session_state.user_secret_id}).execute()
                 st.session_state.chat_id = new_c.data[0]['id']
             else:
                 supabase.table("chat_history").update({"full_history": st.session_state.messages}).eq("id", st.session_state.chat_id).execute()
-        except: st.error("AI Engine connection failed.")
+        except: st.error("AI connection failed.")
