@@ -1,3 +1,5 @@
 streamlit
 groq
 supabase
+requests
+PyPDF2
