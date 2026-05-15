@@ -10,7 +10,7 @@ try:
     key = st.secrets["SUPABASE_KEY"]
     supabase = create_client(url, key)
 except:
-    st.error("Missing Secrets: Check SUPABASE_URL and SUPABASE_KEY.")
+    st.error("Missing Secrets: Check SUPABASE_URL and SUPABASE_KEY in Streamlit Cloud.")
     st.stop()
 
 # 2. APP CONFIG
@@ -33,71 +33,76 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 4. ROBUST AUTH CHECK
-def check_auth():
-    """Manually forces a session check from the URL and storage."""
+# 4. DEEP SESSION SYNC (THE FIX)
+def get_active_user():
+    """Forces Supabase to look for a session in the browser/redirect params."""
     try:
-        # Check if we have a valid user
-        user_res = supabase.auth.get_user()
-        if user_res and user_res.user:
-            return user_res.user
+        # First, try to get user from existing session
+        user_response = supabase.auth.get_user()
+        if user_response and user_response.user:
+            return user_response.user
+        
+        # If that fails, try to recover session from the URL hash (common in OAuth)
+        session_res = supabase.auth.get_session()
+        if session_res and session_res.session:
+            return session_res.session.user
     except:
         pass
     return None
 
-# Check status
-active_user = check_auth()
+# Check user status at the very start of every run
+current_user = get_active_user()
 
 # 5. SIDEBAR
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
-    if active_user:
-        u_name = active_user.user_metadata.get("full_name") or active_user.user_metadata.get("first_name", "Engineer")
-        st.write(f"👤 **{u_name}**")
+    if current_user:
+        name = current_user.user_metadata.get("full_name") or current_user.user_metadata.get("first_name", "Engineer")
+        st.write(f"👤 **{name}**")
         if st.button("Logout", use_container_width=True):
             supabase.auth.sign_out()
             st.rerun()
+    else:
+        st.info("Please sign in to unlock the chat.")
 
-# 6. APP GATEKEEPER
-if not active_user:
+# 6. LOGIC GATE: LOGIN VS CHAT
+if not current_user:
+    # --- LOGIN PAGE ---
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     
-    # We use a single, clear Google button for troubleshooting
-    st.info("To access the workspace, please sign in with Google.")
+    st.warning("Workspace Locked: Authentication Required.")
     
     try:
-        # Generate OAuth Link
-        auth_res = supabase.auth.sign_in_with_oauth({
+        # Generate the OAuth URL
+        auth_info = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
                 "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
                 "skip_browser_redirect": True 
             }
         })
-        if auth_res and auth_res.url:
-            st.link_button("Continue with Google 🌐", auth_res.url, use_container_width=True)
+        
+        if auth_info and auth_info.url:
+            st.link_button("🚀 Continue with Google", auth_info.url, use_container_width=True)
+            st.caption("Clicking the button will open Google's secure login in a new tab.")
             
-            # SMALL TRICK: If the URL has an access token but no user, help the sync
-            if "#access_token" in st.query_params:
-                st.warning("Syncing your session... please wait.")
-                time.sleep(2)
-                st.rerun()
-                
     except Exception as e:
-        st.error(f"Config error: {e}")
+        st.error(f"Configuration Error: {e}")
     st.stop()
 
-# 7. CHAT WORKSPACE (THE "OPENED" STATE)
+# 7. CHAT WORKSPACE (ONLY OPENS IF LOGGED IN)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    
+    st.success(f"Identity Verified: Welcome, {current_user.user_metadata.get('full_name', 'User')}")
+
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Simple Chat UI
+    # Display Chat
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
 
+    # Chat Input
     if prompt := st.chat_input("Ask Feemo..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
@@ -113,4 +118,4 @@ else:
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
         except:
-            st.error("API connection failed.")
+            st.error("AI node failed. Check Groq API Key.")
