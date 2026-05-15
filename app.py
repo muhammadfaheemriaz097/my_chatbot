@@ -10,14 +10,14 @@ try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase = create_client(url, key)
-except Exception as e:
-    st.error("Environment Error: Check Streamlit Secrets.")
+except:
+    st.error("Secrets missing. Check Streamlit Cloud configuration.")
     st.stop()
 
 # 2. APP CONFIGURATION
 st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide")
 
-# 3. UI STYLING (Gemini Aesthetic)
+# 3. GEMINI-STYLE CSS
 st.markdown("""
     <style>
     #MainMenu, footer, .stAppToolbar {visibility: hidden !important;}
@@ -35,7 +35,11 @@ st.markdown("""
     }
     .logo-symbol { color: #4285f4; font-size: 35px; margin-right: 12px; }
 
-    section[data-testid="stSidebar"] { background-color: #000000 !important; border-right: 1px solid #2d2d2d !important; width: 280px !important; }
+    section[data-testid="stSidebar"] { 
+        background-color: #111111 !important; 
+        border-right: 1px solid #2d2d2d !important; 
+        width: 280px !important; 
+    }
     [data-testid="stChatMessage"]:nth-child(odd) { background-color: #1a1a1b !important; border-radius: 10px; }
     .stForm { border: 1px solid #2d2d2d !important; padding: 25px !important; border-radius: 15px !important; background-color: #111111; }
     </style>
@@ -43,7 +47,6 @@ st.markdown("""
 
 # 4. SESSION STATE INITIALIZATION
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
-if "welcome_shown" not in st.session_state: st.session_state.welcome_shown = False
 if "login_error" not in st.session_state: st.session_state.login_error = None
 if "messages" not in st.session_state: st.session_state.messages = []
 if "current_chat_id" not in st.session_state: st.session_state.current_chat_id = None
@@ -51,20 +54,23 @@ if "current_chat_id" not in st.session_state: st.session_state.current_chat_id =
 # --- 5. THE LOGIN CALLBACK ---
 def login_callback():
     try:
-        email = st.session_state.email_input
-        password = st.session_state.pass_input
-        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        res = supabase.auth.sign_in_with_password({
+            "email": st.session_state.email_input, 
+            "password": st.session_state.pass_input
+        })
         if res.user:
             st.session_state.user_secret_id = res.user.id
             st.session_state.first_name = res.user.user_metadata.get("first_name", "User")
             st.session_state.authenticated = True
             st.session_state.login_error = None
-        else: st.session_state.login_error = "Invalid credentials."
-    except: st.session_state.login_error = "Invalid email or password."
+        else: st.session_state.login_error = "Invalid email or password."
+    except: st.session_state.login_error = "Connection Error."
 
-# --- 6. THE SIDEBAR (ALWAYS CALLED) ---
+# --- 6. MANDATORY SIDEBAR RENDERING ---
+# This block runs every time, ensuring the sidebar frame is ALWAYS built.
 with st.sidebar:
-    st.markdown("<h2 style='color:#4285f4;'>Feemo AI</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
+    
     if st.session_state.authenticated:
         st.caption(f"👤 {st.session_state.first_name}")
         st.markdown("---")
@@ -89,7 +95,7 @@ with st.sidebar:
         try:
             hist = supabase.table("chat_history").select("id, chat_title").eq("user_id", st.session_state.user_secret_id).order("created_at", desc=True).limit(5).execute()
             for chat in hist.data:
-                if st.button(f"💬 {chat['chat_title'][:20]}...", key=f"h_{chat['id']}", use_container_width=True):
+                if st.button(f"💬 {chat['chat_title'][:20]}...", key=f"side_{chat['id']}", use_container_width=True):
                     msg_data = supabase.table("chat_history").select("full_history").eq("id", chat['id']).execute()
                     st.session_state.messages = msg_data.data[0]['full_history']
                     st.session_state.current_chat_id = chat['id']
@@ -101,64 +107,57 @@ with st.sidebar:
             for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
     else:
-        st.info("Sign in to view workspace history.")
+        st.info("Log in to unlock your workspace and history.")
 
-# --- 7. CONDITIONAL MAIN BODY ---
-# By using if/else instead of st.stop(), we keep the Sidebar visible at all times.
+# --- 7. MAIN BODY LOGIC GATE ---
 if not st.session_state.authenticated:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
+    t1, t2, t3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
     
-    with tab1:
+    with t1:
         if st.session_state.login_error: st.error(st.session_state.login_error)
         with st.form("login_form"):
             st.text_input("Email Address", placeholder="name@email.com", key="email_input")
             st.text_input("Password", type="password", key="pass_input")
-            st.form_submit_button("LOGIN TO WORKSPACE", use_container_width=True, on_click=login_callback)
-        if st.session_state.authenticated:
-            st.success("Access Granted! Loading...")
-            time.sleep(0.5)
-            st.rerun()
-    
-    with tab2:
-        with st.form("signup_form"):
-            n_name = st.text_input("Full Name", placeholder="Faheem Riaz")
+            st.form_submit_button("SIGN IN", use_container_width=True, on_click=login_callback)
+            
+    with t2:
+        with st.form("reg_form"):
+            n_name = st.text_input("Full Name")
             n_email = st.text_input("Email")
             n_pass = st.text_input("Password", type="password")
             if st.form_submit_button("REGISTER", use_container_width=True):
                 try:
                     supabase.auth.sign_up({"email": n_email, "password": n_pass, "options": {"data": {"first_name": n_name}}})
-                    st.success("Verification link sent!")
+                    st.success("Verification link sent! Check your inbox.")
                 except: st.error("Signup failed.")
 
-    with tab3:
-        with st.form("reset_form"):
-            reset_email = st.text_input("Email Address")
+    with t3:
+        with st.form("res_form"):
+            r_email = st.text_input("Recovery Email")
             if st.form_submit_button("SEND RESET LINK", use_container_width=True):
                 try:
-                    supabase.auth.reset_password_for_email(reset_email)
-                    st.success("Recovery email sent!")
+                    supabase.auth.reset_password_for_email(r_email)
+                    st.success("Recovery link sent!")
                 except: st.error("Error sending link.")
+
 else:
-    # --- PROTECTED APP CONTENT ---
-    if not st.session_state.welcome_shown:
-        st.toast(f"🚀 Welcome back, {st.session_state.first_name}!", icon="✨")
-        st.session_state.welcome_shown = True
-
+    # --- LOGGED IN CONTENT ---
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-
+    
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Message Feemo AI..."):
+    if prompt := st.chat_input("Ask Feemo..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
         
         try:
-            sys_msg = f"You are Feemo AI. Assistant to {st.session_state.first_name}, an ML & AI Engineer."
+            # Context Awareness
+            sys_msg = f"You are Feemo AI. Professional helper to {st.session_state.first_name}, an ML & AI Engineer."
             if 'pdf_text' in locals() and pdf_text:
-                sys_msg += f"\n\nContext from PDF:\n{pdf_text[:7000]}"
+                sys_msg += f"\n\nContext: {pdf_text[:7000]}"
 
             headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
             payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": sys_msg}] + st.session_state.messages}
@@ -169,9 +168,9 @@ else:
                 st.markdown(reply)
                 st.session_state.messages.append({"role": "assistant", "content": reply})
             
-            # Auto-save Logic
+            # Save History
             if st.session_state.current_chat_id is None:
-                new_c = supabase.table("chat_history").insert({"chat_title": prompt[:30], "full_history": st.session_state.messages, "user_id": st.session_state.user_secret_id}).execute()
+                new_c = supabase.table("chat_history").insert({"chat_title": prompt[:25], "full_history": st.session_state.messages, "user_id": st.session_state.user_secret_id}).execute()
                 st.session_state.current_chat_id = new_c.data[0]['id']
             else:
                 supabase.table("chat_history").update({"full_history": st.session_state.messages}).eq("id", st.session_state.current_chat_id).execute()
