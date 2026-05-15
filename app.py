@@ -15,13 +15,13 @@ except:
 
 # 2. APP CONFIGURATION
 st.set_page_config(
-    page_title="✦Feemo AI", 
+    page_title="Feemo AI", 
     page_icon="✦", 
     layout="wide", 
-    initial_sidebar_state="expanded" # FORCES SIDEBAR OPEN
+    initial_sidebar_state="expanded"
 )
 
-# 3. GEMINI-STYLE CSS
+# 3. GEMINI-STYLE CSS (With ✦ Symbol Fix)
 st.markdown("""
     <style>
     /* Clean UI */
@@ -30,11 +30,23 @@ st.markdown("""
     .block-container { max-width: 850px; padding-top: 2rem !important; margin: auto; }
 
     /* GEMINI MULTI-COLOR GRADIENT LOGO */
-    .logo-container { text-align: center; margin-bottom: 20px; }
+    .logo-container { 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        margin-bottom: 20px; 
+        padding: 10px;
+    }
     .logo-text {
-        font-size: 55px; font-weight: 800; letter-spacing: -2px;
+        font-size: 55px; font-weight: 800; letter-spacing: -2px; margin: 0;
         background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570, #f4af45);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .logo-symbol { 
+        font-size: 45px; 
+        margin-right: 15px; 
+        color: #4285f4; 
+        text-shadow: 0px 0px 15px rgba(66, 133, 244, 0.6); 
     }
 
     /* SIDEBAR THEME */
@@ -55,7 +67,7 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "chat_id" not in st.session_state: st.session_state.chat_id = None
 if "login_error" not in st.session_state: st.session_state.login_error = None
 
-# 5. SIDEBAR (ALWAYS CALLED)
+# 5. SIDEBAR (Defined early for rendering)
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
     if st.session_state.authenticated:
@@ -94,7 +106,7 @@ def login_callback():
 
 # 7. MAIN GATE
 if not st.session_state.authenticated:
-    st.markdown("<div class='logo-container'><h1 class='logo-text'>Feemo AI</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     t1, t2, t3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
     
     with t1:
@@ -127,7 +139,7 @@ if not st.session_state.authenticated:
 
 # 8. LOGGED-IN WORKSPACE
 else:
-    st.markdown("<div class='logo-container'><h1 class='logo-text'>Feemo AI</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     
     with st.expander("📁 PDF Knowledge Base"):
         pdf_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
@@ -135,7 +147,8 @@ else:
         if pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             for i in range(min(len(reader.pages), 10)):
-                pdf_text += reader.pages[i].extract_text() + "\n"
+                extracted = reader.pages[i].extract_text()
+                if extracted: pdf_text += extracted + "\n"
             st.success("Context Uploaded.")
 
     for msg in st.session_state.messages:
@@ -147,13 +160,13 @@ else:
         
         try:
             headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
-            sys_msg = f"You are Feemo AI. Helper to {st.session_state.first_name}, an ML & AI Engineer."
-            if pdf_text: sys_msg += f"\n\nContext: {pdf_text[:6000]}"
+            sys_msg = f"You are Feemo AI. Professional helper to {st.session_state.first_name}, an ML & AI Engineer."
+            if pdf_text: sys_msg += f"\n\nContext: {pdf_text[:7000]}"
 
             payload = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": sys_msg}] + st.session_state.messages}
             
             with st.chat_message("assistant"):
-                res = requests.post("https://api.groq.com/openai/v1/chat/completions" if "OPENAI" in st.secrets else "https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
+                res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
                 reply = res["choices"][0]["message"]["content"]
                 st.markdown(reply)
                 st.session_state.messages.append({"role": "assistant", "content": reply})
