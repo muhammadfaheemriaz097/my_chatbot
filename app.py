@@ -15,7 +15,7 @@ except:
 
 # 2. APP CONFIGURATION
 st.set_page_config(
-    page_title="Feemo AI", 
+    page_title="✦Feemo AI", 
     page_icon="✦", 
     layout="wide", 
     initial_sidebar_state="expanded" # FORCES SIDEBAR OPEN
