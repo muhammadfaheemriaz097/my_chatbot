@@ -42,7 +42,7 @@ def get_active_user():
         if user_response and user_response.user:
             return user_response.user
         
-        # If that fails, try to recover session from the URL hash (common in OAuth)
+        # Recover session from the URL hash (common in OAuth returns)
         session_res = supabase.auth.get_session()
         if session_res and session_res.session:
             return session_res.session.user
@@ -50,7 +50,7 @@ def get_active_user():
         pass
     return None
 
-# Check user status at the very start of every run
+# Check user status at the very start
 current_user = get_active_user()
 
 # 5. SIDEBAR
@@ -67,13 +67,11 @@ with st.sidebar:
 
 # 6. LOGIC GATE: LOGIN VS CHAT
 if not current_user:
-    # --- LOGIN PAGE ---
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    
     st.warning("Workspace Locked: Authentication Required.")
     
     try:
-        # Generate the OAuth URL
+        # NOTE: The redirect_to now includes the trailing slash to match Supabase
         auth_info = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
@@ -84,7 +82,7 @@ if not current_user:
         
         if auth_info and auth_info.url:
             st.link_button("🚀 Continue with Google", auth_info.url, use_container_width=True)
-            st.caption("Clicking the button will open Google's secure login in a new tab.")
+            st.caption("Matches Supabase Site URL configuration.")
             
     except Exception as e:
         st.error(f"Configuration Error: {e}")
