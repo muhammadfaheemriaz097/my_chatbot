@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import time
 from supabase import create_client
 
 # 1. INITIALIZE BACKEND
@@ -30,44 +29,44 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 4. EXPLICIT SESSION CAPTURE (THE SOLUTION)
-def check_auth():
-    """Forces the app to acknowledge the session immediately after Google login."""
+# 4. CRITICAL: SESSION CAPTURE ENGINE
+def get_user():
+    """Immediately checks for a user session or a returning OAuth code."""
     try:
-        # Check if Supabase sees a user already
+        # Check for existing session
         user_res = supabase.auth.get_user()
         if user_res and user_res.user:
             return user_res.user
-            
-        # Check if there is an active session in the storage
-        session_res = supabase.auth.get_session()
-        if session_res and session_res.session:
-            return session_res.session.user
+        
+        # Check if we are returning with a code in the URL
+        if "code" in st.query_params:
+            # Exchange code for session automatically
+            supabase.auth.get_session()
+            st.rerun()
     except:
         pass
     return None
 
-# Check identity status
-active_user = check_auth()
+active_user = get_user()
 
 # 5. SIDEBAR
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
     if active_user:
-        name = active_user.user_metadata.get("full_name") or "Engineer"
-        st.write(f"Logged in as: **{name}**")
-        if st.button("Sign Out", use_container_width=True):
+        u_name = active_user.user_metadata.get("full_name", "Engineer")
+        st.write(f"Logged in: **{u_name}**")
+        if st.button("Logout", use_container_width=True):
             supabase.auth.sign_out()
             st.rerun()
 
-# 6. MAIN NAVIGATION
+# 6. AUTHENTICATION GATE
 if not active_user:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.info("Please sign in with Google to unlock the AI workspace.")
+    st.info("Please sign in to unlock the AI workspace.")
     
     try:
-        # OAuth Setup
-        auth_data = supabase.auth.sign_in_with_oauth({
+        # Generate OAuth URL
+        auth_res = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
                 "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
@@ -75,20 +74,14 @@ if not active_user:
             }
         })
         
-        if auth_data and auth_data.url:
-            st.link_button("Continue with Google 🌐", auth_data.url, use_container_width=True)
-            
-            # Watch for the returning token in the URL
-            if "#access_token" in str(st.query_params):
-                with st.status("Verifying login..."):
-                    time.sleep(1)
-                    st.rerun()
-                    
+        if auth_res and auth_res.url:
+            st.link_button("Continue with Google 🌐", auth_res.url, use_container_width=True)
+                
     except Exception as e:
-        st.error(f"Handshake failed: {e}")
+        st.error(f"Login setup failed: {e}")
     st.stop()
 
-# 7. CHAT INTERFACE (ONLY OPENS IF LOGGED IN)
+# 7. CHAT INTERFACE
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     st.success(f"Welcome back, {active_user.user_metadata.get('full_name', 'User')}!")
@@ -104,7 +97,6 @@ else:
         with st.chat_message("user"): st.markdown(prompt)
         
         try:
-            # Simple AI Call
             headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
             payload = {
                 "model": "llama-3.3-70b-versatile", 
@@ -115,4 +107,4 @@ else:
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
         except:
-            st.error("AI engine currently unavailable.")
+            st.error("AI node failed.")
