@@ -12,7 +12,7 @@ supabase = create_client(url, key)
 # 2. APP CONFIGURATION
 st.set_page_config(page_title="Feemo AI", page_icon="✨", layout="wide")
 
-# 3. ADVANCED CSS (Branding & Layout)
+# 3. ADVANCED CSS
 st.markdown("""
     <style>
     #MainMenu, footer, .stAppToolbar {visibility: hidden !important;}
@@ -52,6 +52,10 @@ if "welcome_shown" not in st.session_state:
 
 if not st.session_state.authenticated:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
+    
+    # --- DEDICATED MESSAGE ZONE (Fixes overlapping Success/Error) ---
+    message_zone = st.empty() 
+    
     tab1, tab2, tab3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
     
     with tab1:
@@ -63,18 +67,22 @@ if not st.session_state.authenticated:
             if submit_login:
                 try:
                     auth_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                    
                     if auth_res.user:
+                        # Update state immediately
                         st.session_state.user_secret_id = auth_res.user.id
                         st.session_state.first_name = auth_res.user.user_metadata.get("first_name", "User")
                         st.session_state.authenticated = True
-                        st.success("Access Granted. Synchronizing...")
-                        time.sleep(0.6)
+                        
+                        # Clear old errors and show success
+                        message_zone.success("Access Granted. Synchronizing...")
+                        time.sleep(0.8)
                         st.rerun()
-                        st.stop()  # CRITICAL: Prevents showing "Invalid" error after success
+                        st.stop()
                     else:
-                        st.error("Invalid email or password.")
+                        message_zone.error("Invalid email or password.")
                 except:
-                    st.error("Invalid email or password.")
+                    message_zone.error("Invalid email or password.")
     
     with tab2:
         with st.form("signup_form"):
@@ -84,19 +92,19 @@ if not st.session_state.authenticated:
             confirm_pass = st.text_input("Confirm Password", type="password")
             if st.form_submit_button("REGISTER ACCOUNT", use_container_width=True):
                 if new_pass != confirm_pass:
-                    st.warning("Passwords do not match.")
+                    message_zone.warning("Passwords do not match.")
                 elif len(new_pass) < 6:
-                    st.warning("Password must be at least 6 characters.")
+                    message_zone.warning("Password must be at least 6 characters.")
                 else:
                     try:
                         supabase.auth.sign_up({"email": new_email, "password": new_pass, "options": {"data": {"first_name": new_name}}})
-                        st.success("Verification link sent! Check your inbox.")
+                        message_zone.success("Verification link sent! Check your inbox.")
                     except Exception as e:
-                        if "already" in str(e).lower(): st.error("Account already exists. Log in instead.")
-                        else: st.error(f"Error: {e}")
+                        if "already" in str(e).lower(): message_zone.error("Email already exists.")
+                        else: message_zone.error(f"Error: {e}")
     st.stop()
 
-# 5. POST-LOGIN UI (Toast Notification)
+# 5. POST-LOGIN UI (Toast)
 if not st.session_state.welcome_shown:
     st.toast(f"🚀 Welcome back, {st.session_state.first_name}!", icon="✨")
     st.session_state.welcome_shown = True
@@ -136,7 +144,7 @@ with st.sidebar:
         st.session_state.welcome_shown = False
         st.rerun()
 
-# 8. MAIN INTERFACE (Branded Logo)
+# 8. MAIN INTERFACE (Logo)
 st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
 # 9. CHAT RENDERING
@@ -154,7 +162,7 @@ if prompt := st.chat_input("Message Feemo AI..."):
         headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}", "Content-Type": "application/json"}
         payload = {
             "model": "llama-3.3-70b-versatile", 
-            "messages": [{"role": "system", "content": f"You are Feemo AI. Professional helper to {st.session_state.first_name}."}] + st.session_state.messages
+            "messages": [{"role": "system", "content": f"You are Feemo AI. Helper to {st.session_state.first_name}, an ML Engineer."}] + st.session_state.messages
         }
         with st.chat_message("assistant"):
             res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
@@ -169,4 +177,4 @@ if prompt := st.chat_input("Message Feemo AI..."):
         else:
             supabase.table("chat_history").update({"full_history": st.session_state.messages}).eq("id", st.session_state.current_chat_id).execute()
     except:
-        st.error("AI service interruption. Retrying...")
+        st.error("AI service interruption.")
