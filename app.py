@@ -59,15 +59,12 @@ if "messages" not in st.session_state:
 if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = None
 
-# --- 5. THE LOGIN CALLBACK (The Logic Hub) ---
+# --- 5. THE LOGIN CALLBACK ---
 def login_callback():
     try:
-        # Access inputs directly from their keys
         email = st.session_state.email_input
         password = st.session_state.pass_input
-        
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        
         if res.user:
             st.session_state.user_secret_id = res.user.id
             st.session_state.first_name = res.user.user_metadata.get("first_name", "User")
@@ -82,19 +79,15 @@ def login_callback():
 if not st.session_state.authenticated:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["SIGN IN", "CREATE ACCOUNT"])
+    tab1, tab2, tab3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
     
     with tab1:
-        # Show Error only if login_error is set
         if st.session_state.login_error:
             st.error(st.session_state.login_error)
-            
         with st.form("login_form"):
             st.text_input("Email Address", placeholder="name@email.com", key="email_input")
             st.text_input("Password", type="password", key="pass_input")
             st.form_submit_button("LOGIN TO WORKSPACE", use_container_width=True, on_click=login_callback)
-            
-        # If successfully authenticated in the callback, trigger a rerun
         if st.session_state.authenticated:
             st.success("Access Granted! Loading...")
             time.sleep(0.5)
@@ -103,7 +96,7 @@ if not st.session_state.authenticated:
     with tab2:
         with st.form("signup_form"):
             n_name = st.text_input("Full Name", placeholder="Faheem Riaz")
-            n_email = st.text_input("Email")
+            n_email = st.text_input("Email", placeholder="name@email.com")
             n_pass = st.text_input("Password", type="password")
             if st.form_submit_button("REGISTER", use_container_width=True):
                 try:
@@ -111,20 +104,29 @@ if not st.session_state.authenticated:
                     st.success("Check your email to verify!")
                 except:
                     st.error("Registration failed.")
+
+    with tab3:
+        st.markdown("<div style='margin-bottom: 10px;'>Enter email for a recovery link.</div>", unsafe_allow_html=True)
+        with st.form("reset_form"):
+            reset_email = st.text_input("Email Address", placeholder="name@email.com")
+            if st.form_submit_button("SEND RESET LINK", use_container_width=True):
+                try:
+                    supabase.auth.reset_password_for_email(reset_email)
+                    st.success("Recovery email sent!")
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
     st.stop()
 
 # --- 7. PROTECTED APPLICATION ---
 
-# WELCOME TOAST
 if not st.session_state.welcome_shown:
     st.toast(f"🚀 Welcome back, {st.session_state.first_name}!", icon="✨")
     st.session_state.welcome_shown = True
 
-# SIDEBAR & PDF
+# SIDEBAR
 with st.sidebar:
     st.markdown("<h2 style='color:#c9a84c;'>Feemo AI</h2>", unsafe_allow_html=True)
     st.caption(f"👤 {st.session_state.first_name}")
-    
     st.markdown("---")
     st.markdown("<div style='color:#c9a84c; font-size:12px; font-weight:bold; margin-bottom:10px;'>KNOWLEDGE BASE</div>", unsafe_allow_html=True)
     
@@ -151,8 +153,8 @@ with st.sidebar:
         hist = supabase.table("chat_history").select("id, chat_title").eq("user_id", st.session_state.user_secret_id).order("created_at", desc=True).limit(5).execute()
         for chat in hist.data:
             if st.sidebar.button(f"💬 {chat['chat_title'][:20]}...", key=f"h_{chat['id']}", use_container_width=True):
-                m_data = supabase.table("chat_history").select("full_history").eq("id", chat['id']).execute()
-                st.session_state.messages = m_data.data[0]['full_history']
+                msg_data = supabase.table("chat_history").select("full_history").eq("id", chat['id']).execute()
+                st.session_state.messages = msg_data.data[0]['full_history']
                 st.session_state.current_chat_id = chat['id']
                 st.rerun()
     except: pass
@@ -160,7 +162,6 @@ with st.sidebar:
     st.sidebar.markdown("---")
     if st.sidebar.button("🚪 Logout", use_container_width=True):
         supabase.auth.sign_out()
-        # Wipe state on logout
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
@@ -179,7 +180,7 @@ if prompt := st.chat_input("Message Feemo AI..."):
         st.markdown(prompt)
     
     try:
-        sys_msg = f"You are Feemo AI. Professional assistant to {st.session_state.first_name}, an ML & AI Engineer."
+        sys_msg = f"You are Feemo AI. Professional helper to {st.session_state.first_name}, an ML & AI Engineer."
         if pdf_text:
             sys_msg += f"\n\nContext from PDF:\n{pdf_text[:7000]}"
             sys_msg += "\n\nAnswer using the PDF context first."
@@ -196,7 +197,6 @@ if prompt := st.chat_input("Message Feemo AI..."):
             st.markdown(reply)
             st.session_state.messages.append({"role": "assistant", "content": reply})
         
-        # Persistence
         if st.session_state.current_chat_id is None:
             new_c = supabase.table("chat_history").insert({"chat_title": prompt[:30], "full_history": st.session_state.messages, "user_id": st.session_state.user_secret_id}).execute()
             st.session_state.current_chat_id = new_c.data[0]['id']
