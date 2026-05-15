@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 from supabase import create_client
 
 # 1. INITIALIZE BACKEND
@@ -14,7 +15,7 @@ except Exception as e:
 # 2. APP CONFIG
 st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide")
 
-# 3. CSS BRANDING
+# 3. CSS BRANDING (Preserved)
 st.markdown("""
     <style>
     #MainMenu, footer {visibility: hidden !important;}
@@ -29,19 +30,22 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 4. CRITICAL: SESSION CAPTURE ENGINE
+# 4. THE "OAUTH INTERCEPTOR" (THE SOLUTION)
 def get_user():
-    """Immediately checks for a user session or a returning OAuth code."""
+    """Forces Streamlit to acknowledge the login immediately."""
     try:
-        # Check for existing session
+        # Step A: Check for existing session
         user_res = supabase.auth.get_user()
         if user_res and user_res.user:
             return user_res.user
         
-        # Check if we are returning with a code in the URL
-        if "code" in st.query_params:
-            # Exchange code for session automatically
+        # Step B: Check for 'code' or 'access_token' in URL
+        # We check both query params and the URL fragment
+        params = st.query_params
+        if "code" in params or "access_token" in params:
+            # Force Supabase to process the returning URL
             supabase.auth.get_session()
+            time.sleep(1) # Give it a second to settle
             st.rerun()
     except:
         pass
@@ -59,16 +63,17 @@ with st.sidebar:
             supabase.auth.sign_out()
             st.rerun()
 
-# 6. AUTHENTICATION GATE
+# 6. LOGIC GATE
 if not active_user:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.info("Please sign in to unlock the AI workspace.")
+    st.info("The chat is currently locked. Sign in to continue.")
     
     try:
-        # Generate OAuth URL
+        # OAuth Setup
         auth_res = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
+                # Ensure this EXACTLY matches your Supabase Site URL
                 "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
                 "skip_browser_redirect": True 
             }
@@ -76,9 +81,14 @@ if not active_user:
         
         if auth_res and auth_res.url:
             st.link_button("Continue with Google 🌐", auth_res.url, use_container_width=True)
+            
+            # Manual fallback check
+            if "code" in st.query_params:
+                st.warning("Verifying credentials... please wait.")
+                st.rerun()
                 
     except Exception as e:
-        st.error(f"Login setup failed: {e}")
+        st.error(f"OAuth Handshake Error: {e}")
     st.stop()
 
 # 7. CHAT INTERFACE
@@ -97,6 +107,7 @@ else:
         with st.chat_message("user"): st.markdown(prompt)
         
         try:
+            # Simple AI Call
             headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
             payload = {
                 "model": "llama-3.3-70b-versatile", 
@@ -107,4 +118,4 @@ else:
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
         except:
-            st.error("AI node failed.")
+            st.error("AI engine is currently busy.")
