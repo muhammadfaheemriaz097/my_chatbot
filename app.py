@@ -10,7 +10,7 @@ try:
     key = st.secrets["SUPABASE_KEY"]
     supabase = create_client(url, key)
 except:
-    st.error("Missing Secrets: Check SUPABASE_URL and SUPABASE_KEY in Streamlit Cloud.")
+    st.error("Missing Secrets: Check SUPABASE_URL and SUPABASE_KEY in Streamlit.")
     st.stop()
 
 # 2. APP CONFIG
@@ -33,16 +33,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 4. DEEP SESSION SYNC (THE FIX)
-def get_active_user():
-    """Forces Supabase to look for a session in the browser/redirect params."""
+# 4. ROBUST AUTH CHECK
+def get_authenticated_user():
+    """Forces a refresh to catch the session after the redirect."""
     try:
-        # First, try to get user from existing session
-        user_response = supabase.auth.get_user()
-        if user_response and user_response.user:
-            return user_response.user
+        # Check standard user
+        user_res = supabase.auth.get_user()
+        if user_res and user_res.user:
+            return user_res.user
         
-        # Recover session from the URL hash (common in OAuth returns)
+        # Check for session in URL hash/storage
         session_res = supabase.auth.get_session()
         if session_res and session_res.session:
             return session_res.session.user
@@ -50,28 +50,26 @@ def get_active_user():
         pass
     return None
 
-# Check user status at the very start
-current_user = get_active_user()
+# Check identity
+active_user = get_authenticated_user()
 
 # 5. SIDEBAR
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
-    if current_user:
-        name = current_user.user_metadata.get("full_name") or current_user.user_metadata.get("first_name", "Engineer")
+    if active_user:
+        name = active_user.user_metadata.get("full_name") or active_user.user_metadata.get("first_name", "Engineer")
         st.write(f"👤 **{name}**")
         if st.button("Logout", use_container_width=True):
             supabase.auth.sign_out()
             st.rerun()
-    else:
-        st.info("Please sign in to unlock the chat.")
 
-# 6. LOGIC GATE: LOGIN VS CHAT
-if not current_user:
+# 6. LOGIC GATE
+if not active_user:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.warning("Workspace Locked: Authentication Required.")
+    st.warning("Authentication Required to open Chat.")
     
     try:
-        # NOTE: The redirect_to now includes the trailing slash to match Supabase
+        # NOTICE: Added the slash '/' at the end to match your screenshot
         auth_info = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
@@ -82,25 +80,24 @@ if not current_user:
         
         if auth_info and auth_info.url:
             st.link_button("🚀 Continue with Google", auth_info.url, use_container_width=True)
-            st.caption("Matches Supabase Site URL configuration.")
+            st.caption("URL configured to match Supabase Site URL.")
             
     except Exception as e:
-        st.error(f"Configuration Error: {e}")
+        st.error(f"Config Error: {e}")
     st.stop()
 
-# 7. CHAT WORKSPACE (ONLY OPENS IF LOGGED IN)
+# 7. WORKSPACE (THE OPEN CHAT)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.success(f"Identity Verified: Welcome, {current_user.user_metadata.get('full_name', 'User')}")
+    st.success(f"Welcome, {active_user.user_metadata.get('full_name', 'Engineer')}")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Display Chat
+    # Simple UI Loop
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    # Chat Input
     if prompt := st.chat_input("Ask Feemo..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
@@ -116,4 +113,4 @@ else:
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
         except:
-            st.error("AI node failed. Check Groq API Key.")
+            st.error("AI Error.")
