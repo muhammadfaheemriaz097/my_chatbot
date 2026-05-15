@@ -15,7 +15,7 @@ except Exception as e:
 # 2. APP CONFIG
 st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide")
 
-# 3. CSS BRANDING (Preserved)
+# 3. CSS BRANDING (Gemini Gradient)
 st.markdown("""
     <style>
     #MainMenu, footer {visibility: hidden !important;}
@@ -27,25 +27,24 @@ st.markdown("""
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     .logo-symbol { font-size: 45px; margin-right: 15px; color: #4285f4; text-shadow: 0px 0px 15px rgba(66, 133, 244, 0.6); }
+    section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #2d2d2d !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 4. THE "OAUTH INTERCEPTOR" (THE SOLUTION)
+# 4. THE SESSION RECOVERY (THE FIX)
 def get_user():
-    """Forces Streamlit to acknowledge the login immediately."""
+    """Forces the app to acknowledge the login immediately."""
     try:
-        # Step A: Check for existing session
+        # Check standard user session
         user_res = supabase.auth.get_user()
         if user_res and user_res.user:
             return user_res.user
         
-        # Step B: Check for 'code' or 'access_token' in URL
-        # We check both query params and the URL fragment
-        params = st.query_params
-        if "code" in params or "access_token" in params:
-            # Force Supabase to process the returning URL
+        # Check for 'code' in query params (OAuth return)
+        if "code" in st.query_params:
+            # Exchange code for session automatically
             supabase.auth.get_session()
-            time.sleep(1) # Give it a second to settle
+            time.sleep(1) # Give Supabase time to sync
             st.rerun()
     except:
         pass
@@ -57,57 +56,54 @@ active_user = get_user()
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
     if active_user:
-        u_name = active_user.user_metadata.get("full_name", "Engineer")
+        u_name = active_user.user_metadata.get("full_name") or active_user.user_metadata.get("first_name", "Engineer")
         st.write(f"Logged in: **{u_name}**")
         if st.button("Logout", use_container_width=True):
             supabase.auth.sign_out()
             st.rerun()
 
-# 6. LOGIC GATE
+# 6. AUTHENTICATION LOGIC
 if not active_user:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.info("The chat is currently locked. Sign in to continue.")
+    st.info("The AI engine is locked. Sign in with Google to continue.")
     
     try:
-        # OAuth Setup
+        # OAuth Setup - MUST match your Supabase config exactly
         auth_res = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
-                # Ensure this EXACTLY matches your Supabase Site URL
                 "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
                 "skip_browser_redirect": True 
             }
         })
         
         if auth_res and auth_res.url:
+            # We use link_button as it's more reliable for redirects
             st.link_button("Continue with Google 🌐", auth_res.url, use_container_width=True)
-            
-            # Manual fallback check
-            if "code" in st.query_params:
-                st.warning("Verifying credentials... please wait.")
-                st.rerun()
                 
     except Exception as e:
-        st.error(f"OAuth Handshake Error: {e}")
+        st.error(f"Login setup failed: {e}")
     st.stop()
 
-# 7. CHAT INTERFACE
+# 7. CHAT WORKSPACE (THE "OPENED" STATE)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
-    st.success(f"Welcome back, {active_user.user_metadata.get('full_name', 'User')}!")
+    st.success(f"Access Granted. Hello, {active_user.user_metadata.get('full_name', 'User')}.")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
+    # Display Chat
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
 
+    # Chat Input
     if prompt := st.chat_input("Ask Feemo..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
         
         try:
-            # Simple AI Call
+            # Call Groq AI using your secret key
             headers = {"Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}"}
             payload = {
                 "model": "llama-3.3-70b-versatile", 
@@ -118,4 +114,5 @@ else:
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
         except:
-            st.error("AI engine is currently busy.")
+            st.error("AI connection failed. Check your API key.")
+            
