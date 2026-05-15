@@ -3,5 +3,4 @@ groq
 supabase
 requests
 PyPDF2
-supabase==2.30.0
-gotrue==2.30.0
+
