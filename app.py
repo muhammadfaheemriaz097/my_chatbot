@@ -81,12 +81,12 @@ def save_chat_message(role, content):
         except:
             pass
 
-# 6. MINIMALIST PREMIUM CSS OVERRIDES
+# 6. EXACT MATCH REPLICA DESIGN (CSS)
 st.markdown("""
     <style>
     #MainMenu, footer {visibility: hidden !important;}
     .stApp { background-color: #0e0e10; color: #ececf1; }
-    .block-container { max-width: 850px; padding-top: 5rem !important; margin: auto; }
+    .block-container { max-width: 850px; padding-top: 4rem !important; margin: auto; }
     
     /* LOGO BRANDING */
     .logo-container { display: flex; justify-content: center; align-items: center; margin-bottom: 40px; }
@@ -101,47 +101,65 @@ st.markdown("""
     section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #2d2d2d !important; }
     .stChatMessage p { color: #ffffff !important; font-size: 15px !important; line-height: 1.8 !important; }
     
-    /* REMOVE ALL NATIVE STREAMLIT FORM OUTLINES */
+    /* REMOVE ALL NATIVE STREAMLIT FORM STRIPES */
     div[data-testid="stForm"] {
         border: none !important;
         background-color: transparent !important;
         padding: 0 !important;
     }
     
-    /* PURE FLOATING CAPSULE DESIGN */
-    .premium-chat-bar {
+    /* GEMINI SPECIFIC HIGH-RADIUS FLOATING CAPSULE WRAPPER */
+    .gemini-capsule-panel {
         background-color: #1e1e22;
         border: 1px solid #2d2d34;
-        border-radius: 32px !important;
-        padding: 6px 20px;
+        border-radius: 28px !important;
+        padding: 16px 24px;
+        box-shadow: 0 12px 42px rgba(0, 0, 0, 0.5);
         display: flex;
-        align-items: center;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-        margin-top: 10px;
+        flex-direction: column;
+        gap: 12px;
     }
     
-    /* INVISIBLE TEXT FIELD BACKGROUND */
+    /* TOP ROW INPUT WRAPPER */
+    .top-input-row {
+        width: 100%;
+    }
+    
+    /* INVISIBLE TEXT CONTAINER OVERRIDES */
     .stTextInput > div > div > input {
         background-color: transparent !important;
         border: none !important;
         color: #ffffff !important;
-        font-size: 16px !important;
-        padding-left: 10px !important;
+        font-size: 17px !important;
+        padding: 0 !important;
     }
     .stTextInput > div > div {
         border: none !important;
         background-color: transparent !important;
         box-shadow: none !important;
+        padding: 0 !important;
     }
     
-    /* CLEAN PLAIN "+" ICON CONFIG */
+    /* BOTTOM ROW ACTIONS ROW */
+    .bottom-action-row {
+        display: flex;
+        align-items: center;
+        justify-content: list-item;
+        width: 100%;
+        border-top: 1px solid rgba(255, 255, 255, 0.03);
+        padding-top: 10px;
+    }
+    
+    /* BORDERLESS "+" FORM ACCENT BUTTONS */
     div[data-testid="column"] button {
         background-color: transparent !important;
         border: none !important;
         color: #9ca3af !important;
-        font-size: 22px !important;
+        font-size: 24px !important;
         padding: 0 !important;
-        margin-top: 2px !important;
+        line-height: 1 !important;
+        width: auto !important;
+        min-width: auto !important;
     }
     div[data-testid="column"] button:hover {
         color: #ffffff !important;
@@ -248,24 +266,24 @@ if not st.session_state.authenticated:
                     st.error("Reset failed. Try again.")
     st.stop()
 
-# 9. CHAT WORKSPACE (MINIMALIST LOGGED-IN STATE)
+# 9. CHAT WORKSPACE (EXACT TWIN MODEL COPY)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
-    # Render ongoing conversations
+    # Render history
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
     attached_context = ""
 
-    # Dynamic asset drawer
+    # Integrated Asset Tray
     if st.session_state.show_tray:
         with st.container(border=True):
-            tray_tabs = st.tabs(["📄 PDF", "📷 Photo", "⚙️ Data"])
+            tray_tabs = st.tabs(["📄 PDF Base", "📷 Vision Photo", "⚙️ Data Matrix"])
             
             with tray_tabs[0]:
-                pdf_file = st.file_uploader("Upload PDF context", type="pdf", label_visibility="collapsed")
+                pdf_file = st.file_uploader("Select Knowledge Source Document", type="pdf", label_visibility="collapsed")
                 if pdf_file:
                     try:
                         reader = PyPDF2.PdfReader(pdf_file)
@@ -276,49 +294,55 @@ else:
                         attached_context += f"\n[Attached PDF Content]:\n{pdf_text[:5000]}"
                         st.success(f"Context loaded: {pdf_file.name}")
                     except:
-                        st.error("Could not read PDF bytes.")
+                        st.error("Failed to read PDF.")
 
             with tray_tabs[1]:
-                photo_file = st.file_uploader("Upload image for vision analysis", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+                photo_file = st.file_uploader("Select Target Frame", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
                 if photo_file:
-                    st.image(photo_file, width=200)
+                    st.image(photo_file, width=220)
                     attached_context += f"\n[User Attached an Image: {photo_file.name}]"
-                    st.info("Image staged.")
+                    st.info("Image staged for processing pipeline.")
 
             with tray_tabs[2]:
-                other_file = st.file_uploader("Upload code or dataset", type=["txt", "csv", "json"], label_visibility="collapsed")
+                other_file = st.file_uploader("Select Raw Dataset", type=["txt", "csv", "json"], label_visibility="collapsed")
                 if other_file:
                     try:
                         raw_bytes = other_file.read().decode("utf-8")
                         attached_context += f"\n[Attached File Context ({other_file.name})]:\n{raw_bytes[:3000]}"
                         st.success(f"Data staged: {other_file.name}")
                     except:
-                        st.error("Could not parse file text.")
+                        st.error("Could not parse file bytes.")
 
-    # --- GEMINI-STYLE CAPSULE CHAT BAR ---
-    with st.form("premium_chat_wrapper", clear_on_submit=True):
-        st.markdown("<div class='premium-chat-bar'>", unsafe_allow_html=True)
+    # --- GEMINI STRUCTURE COMPILING FORM ---
+    with st.form("gemini_layout_form", clear_on_submit=True):
         
-        # Two clean columns: 1 for '+' toggle, 1 for the prompt text input field
-        col_plus, col_field = st.columns([0.6, 14.4])
+        # HTML Core Panel Opener
+        st.markdown("<div class='gemini-capsule-panel'>", unsafe_allow_html=True)
+        
+        # Row 1: Plain Input Field sitting directly at top
+        st.markdown("<div class='top-input-row'>", unsafe_allow_html=True)
+        prompt = st.text_input("Ask Gemini...", placeholder="Ask Gemini", label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Row 2: Bottom Operations Deck housing strictly the layout controls
+        st.markdown("<div class='bottom-action-row'>", unsafe_allow_html=True)
+        col_plus, col_empty = st.columns([1, 14])
         
         with col_plus:
             btn_symbol = "✖" if st.session_state.show_tray else "＋"
-            if st.form_submit_button(btn_symbol):
+            if st.form_submit_button(btn_symbol, help="Upload assets to context"):
                 st.session_state.show_tray = not st.session_state.show_tray
                 st.rerun()
                 
-        with col_field:
-            prompt = st.text_input("Ask Feemo AI anything...", placeholder="Ask Feemo AI anything...", label_visibility="collapsed")
-            
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True) # End actions row
+        st.markdown("</div>", unsafe_allow_html=True) # End entire panel structure
         
-        # HIDDEN SUBMIT FUNCTIONALITY: Creates an invisible HTML element to catch the Enter key
+        # Completely hidden element to capture Enter strokes
         st.markdown("<div style='display:none;'>", unsafe_allow_html=True)
         submit_chat = st.form_submit_button("SUBMIT")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Processing pipeline
+    # Processing Sequence
     if submit_chat and prompt:
         full_prompt_payload = prompt
         if attached_context:
@@ -328,7 +352,7 @@ else:
         save_chat_message("user", prompt)
         st.rerun()
 
-    # Async Response Generator
+    # Async Response Parser
     if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] == "user":
         try:
             headers = {
