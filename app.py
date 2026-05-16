@@ -81,7 +81,7 @@ def save_chat_message(role, content):
         except:
             pass
 
-# 6. GEMINI-STYLE UI BRANDING (CSS)
+# 6. PREMIUM GEMINI-STYLE UI BRANDING & LAYOUT FIXES (CSS)
 st.markdown("""
     <style>
     #MainMenu, footer {visibility: hidden !important;}
@@ -97,10 +97,53 @@ st.markdown("""
     }
     .logo-symbol { font-size: 45px; margin-right: 15px; color: #4285f4; }
     
-    /* UI COMPONENTS */
+    /* SIDEBAR & CHAT CHIPS */
     section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #2d2d2d !important; }
-    .stForm { border: 1px solid #2d2d2d !important; background-color: #171717; border-radius: 15px !important; }
     .stChatMessage p { color: #ffffff !important; font-size: 15px !important; line-height: 1.8 !important; }
+    
+    /* THE PREMIUM WRAPPED FLOATING INPUT BAR */
+    div[data-testid="stForm"] {
+        border: none !important;
+        background-color: transparent !important;
+        padding: 0 !important;
+        margin-top: 1.5rem;
+    }
+    .premium-chat-bar {
+        background-color: #1e1e22;
+        border: 1px solid #2d2d34;
+        border-radius: 32px !important;
+        padding: 10px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+    
+    /* BLEND INNER STREAMLIT TEXT INPUT INTO INVISIBLE BACKGROUND */
+    .stTextInput > div > div > input {
+        background-color: transparent !important;
+        border: none !important;
+        color: #ffffff !important;
+        font-size: 16px !important;
+    }
+    .stTextInput > div > div {
+        border: none !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+    
+    /* FORCE THE TRAY TOGGLE BUTTON TO STAY BORDERLESS AND SLEEK */
+    div[data-testid="column"] button {
+        background-color: transparent !important;
+        border: none !important;
+        color: #9ca3af !important;
+        font-size: 20px !important;
+        padding: 0 !important;
+        line-height: 1 !important;
+    }
+    div[data-testid="column"] button:hover {
+        color: #ffffff !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -203,81 +246,98 @@ if not st.session_state.authenticated:
                     st.error("Reset failed. Try again.")
     st.stop()
 
-# 9. CHAT WORKSPACE (NOW WITH ATTACHMENT TRAY INFRASTRUCTURE)
+# 9. CHAT WORKSPACE (PREMIUM INTEGRATED INTERFACE DESIGN)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
-    # Render active message loop
+    # Render ongoing stream elements
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Setup baseline container string for appending text tokens
+    # Baseline text aggregation variables
     attached_context = ""
 
-    st.markdown("---")
-    
-    # Render layout trigger bar for options tray
-    c1, c2 = st.columns([1, 10])
-    with c1:
-        btn_label = "✖ Close" if st.session_state.show_tray else "➕"
-        if st.button(btn_label, use_container_width=True, help="Attach media or datasets"):
-            st.session_state.show_tray = not st.session_state.show_tray
-            st.rerun()
-
-    with c2:
-        if st.session_state.show_tray:
-            st.caption("📂 Select an asset type below to attach context to your next prompt:")
-        else:
-            st.caption("Click the ➕ button to upload files or computer vision photos.")
-
-    # Render open Attachment Tray interface elements
+    # Render expandable context upload deck if state toggle is flagged open
     if st.session_state.show_tray:
+        st.markdown("<p style='color:#6d6d75; font-size:13px; font-weight:600; margin-bottom:6px;'>📂 Staging Attachment Assets:</p>", unsafe_allow_html=True)
         with st.container(border=True):
-            tray_tabs = st.tabs(["📄 Upload PDF", "📷 Upload Photo", "⚙️ Other Files"])
+            tray_tabs = st.tabs(["📄 Knowledge PDF", "📷 Analysis Photo", "⚙️ Raw Code/Data"])
             
             with tray_tabs[0]:
-                pdf_file = st.file_uploader("Select PDF Knowledge Document", type="pdf", label_visibility="collapsed")
+                pdf_file = st.file_uploader("Select Knowledge Base Source Document", type="pdf", label_visibility="collapsed")
                 if pdf_file:
                     try:
                         reader = PyPDF2.PdfReader(pdf_file)
                         pdf_text = ""
                         for i in range(min(len(reader.pages), 10)):
                             page_text = reader.pages[i].extract_text()
-                            if page_text:
-                                pdf_text += page_text + "\n"
+                            if page_text: pdf_text += page_text + "\n"
                         attached_context += f"\n[Attached PDF Content]:\n{pdf_text[:5000]}"
                         st.success(f"Context integrated: {pdf_file.name}")
                     except Exception as e:
-                        st.error(f"Could not parse PDF layout: {e}")
+                        st.error(f"Could not read PDF bytes structural layer: {e}")
 
             with tray_tabs[1]:
-                photo_file = st.file_uploader("Select Image for Analysis", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+                photo_file = st.file_uploader("Select Target Frame for Vision Diagnostics", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
                 if photo_file:
-                    st.image(photo_file, caption="Staged Image Asset", width=300)
+                    st.image(photo_file, caption="Staged Image Asset", width=250)
                     attached_context += f"\n[User Attached an Image: {photo_file.name}]"
-                    st.info("Vision asset staged. Processing will complete on submission.")
+                    st.info("Vision asset staged. Pipeline will process on prompt execution.")
 
             with tray_tabs[2]:
-                other_file = st.file_uploader("Select Supplementary Data", type=["txt", "csv", "json"], label_visibility="collapsed")
+                other_file = st.file_uploader("Select Supplemental Dataset", type=["txt", "csv", "json"], label_visibility="collapsed")
                 if other_file:
                     try:
                         raw_bytes = other_file.read().decode("utf-8")
                         attached_context += f"\n[Attached File Context ({other_file.name})]:\n{raw_bytes[:3000]}"
-                        st.success(f"Staged text file data: {other_file.name}")
+                        st.success(f"Staged data payload: {other_file.name}")
                     except:
-                        st.error("Could not parse file bytes to text.")
+                        st.error("Failed parsing asset matrix to string layout tokens.")
 
-    # Core chat interface bar execution
-    if prompt := st.chat_input("Ask Feemo AI anything..."):
+    # HTML Form wrapper containing interactive inline row
+    with st.form("premium_chat_wrapper", clear_on_submit=True):
+        
+        # Open layout panel structure
+        st.markdown("<div class='premium-chat-bar'>", unsafe_allow_html=True)
+        
+        # Partition horizontal real estate across 3 core columns matching reference blueprint
+        col_plus, col_field, col_meta = st.columns([1, 14, 2])
+        
+        with col_plus:
+            # Inline interaction anchor symbol toggle
+            btn_symbol = "✖" if st.session_state.show_tray else "＋"
+            if st.form_submit_button(btn_symbol, help="Click to open or close attachment tray"):
+                st.session_state.show_tray = not st.session_state.show_tray
+                st.rerun()
+                
+        with col_field:
+            # Borderless text data pipeline landing zone
+            prompt = st.text_input("Ask Gemini...", placeholder="Ask Feemo AI anything...", label_visibility="collapsed")
+            
+        with col_meta:
+            # Right aligned metrics tags tracking reference picture style configurations
+            st.markdown(
+                "<div style='display:flex; justify-content:flex-end; align-items:center; gap:14px; height:100%; margin-top:4px; font-family:sans-serif;'>"
+                "<span style='color:#6d6d75; font-size:14px; font-weight:500; cursor:pointer;'>Fast ▾</span>"
+                "<span style='color:#6d6d75; font-size:16px; cursor:pointer;'>🎙️</span>"
+                "</div>", 
+                unsafe_allow_html=True
+            )
+            
+        # Close layout panel structure
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Transparent keyboard enter trigger tracker (Invisible element, catches returns)
+        submit_chat = st.form_submit_button("SUBMIT", use_container_width=True)
+
+    # Run inference sequence on positive submit trigger executions
+    if submit_chat and prompt:
         full_prompt_payload = prompt
         if attached_context:
             full_prompt_payload = f"{prompt}\n\n{attached_context}"
 
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        
         save_chat_message("user", prompt)
             
         try:
@@ -293,24 +353,31 @@ else:
                 "max_tokens": 1000
             }
 
-            with st.chat_message("assistant"):
-                with st.spinner("✦ Feemo AI is thinking..."):
-                    res = requests.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers=headers,
-                        json=payload
-                    ).json()
-                    
-                    if "choices" in res:
-                        reply = res["choices"][0]["message"]["content"]
-                        st.markdown(reply)
-                        st.session_state.messages.append({"role": "assistant", "content": reply})
-                        
-                        save_chat_message("assistant", reply)
-                        
-                        st.session_state.show_tray = False
-                        st.rerun()
-                    else:
-                        st.error("Inference node returned structural anomaly.")
-        except Exception as e:
-            st.error(f"Node execution failure: {e}")
+            # Pre-rerun to draw the user message immediately
+            st.rerun()
+        except:
+            pass
+
+    # Async response rendering block fallback 
+    if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] == "user":
+        try:
+            headers = {
+                "Authorization": "Bearer " + st.secrets["GROQ_API_KEY"],
+                "Content-Type": "application/json"
+            }
+            sys_msg = f"You are Feemo AI, a helpful assistant to {st.session_state.first_name}."
+            payload = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "system", "content": sys_msg}] + st.session_state.messages,
+                "max_tokens": 1000
+            }
+            
+            res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload).json()
+            if "choices" in res:
+                reply = res["choices"][0]["message"]["content"]
+                st.session_state.messages.append({"role": "assistant", "content": reply})
+                save_chat_message("assistant", reply)
+                st.session_state.show_tray = False
+                st.rerun()
+        except:
+            pass
