@@ -26,6 +26,7 @@ if "authenticated" not in st.session_state: st.session_state.authenticated = Fal
 if "messages" not in st.session_state: st.session_state.messages = []
 if "first_name" not in st.session_state: st.session_state.first_name = "Engineer"
 if "user_id" not in st.session_state: st.session_state.user_id = None
+if "show_tray" not in st.session_state: st.session_state.show_tray = False
 
 # 4. THE INTERCEPTOR & SESSION RECOVERY
 def sync_identity():
@@ -58,7 +59,6 @@ def load_chat_history():
     if not st.session_state.user_id:
         return []
     try:
-        # Queries your existing table for the last 5 active chat rows
         response = supabase.table("chat_history")\
             .select("*")\
             .eq("user_id", st.session_state.user_id)\
@@ -101,32 +101,24 @@ st.markdown("""
     section[data-testid="stSidebar"] { background-color: #111111 !important; border-right: 1px solid #2d2d2d !important; }
     .stForm { border: 1px solid #2d2d2d !important; background-color: #171717; border-radius: 15px !important; }
     .stChatMessage p { color: #ffffff !important; font-size: 15px !important; line-height: 1.8 !important; }
-    
-    /* HISTORY BUTTONS */
-    .history-btn { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
     """, unsafe_allow_html=True)
 
-# 7. SIDEBAR (NOW WITH RECENT CHATS)
+# 7. SIDEBAR (WITH RECENT CHATS SUMMARY)
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;'>✦ Feemo AI</h2>", unsafe_allow_html=True)
     if st.session_state.authenticated:
         st.markdown(f"<p style='color:#ffffff;'>👤 <b>{st.session_state.first_name}</b></p>", unsafe_allow_html=True)
         st.markdown("---")
         
-        # --- RESTORED RECENT CHATS SECTION ---
         st.markdown("<p style='color:#888888; font-size:12px; font-weight:bold;'>RECENT CHATS</p>", unsafe_allow_html=True)
         recent_chats = load_chat_history()
         
         if recent_chats:
             for chat in recent_chats:
-                # Extract message text preview safely
                 msg_data = chat.get("message", {})
                 preview = msg_data.get("content", "Empty conversation")[:25] + "..."
-                
-                # Render historical snippet as an interactive layout item
                 if st.button(f"💬 {preview}", key=f"hist_{chat['id']}", use_container_width=True):
-                    # When clicked, load this historical node directly into current viewing state
                     st.toast("Loading conversation history...")
                     if msg_data:
                         st.session_state.messages = [msg_data]
@@ -146,7 +138,7 @@ with st.sidebar:
     else:
         st.info("Log in to activate workspace.")
 
-# 8. LOGIC GATE: LOGIN PAGE
+# 8. LOGIC GATE: AUTHENTICATION INTERFACES
 if not st.session_state.authenticated:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     
@@ -211,43 +203,81 @@ if not st.session_state.authenticated:
                     st.error("Reset failed. Try again.")
     st.stop()
 
-# 9. CHAT WORKSPACE
+# 9. CHAT WORKSPACE (NOW WITH ATTACHMENT TRAY INFRASTRUCTURE)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
-    with st.expander("📁 PDF Knowledge Base"):
-        pdf_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
-        pdf_text = ""
-        if pdf_file:
-            try:
-                reader = PyPDF2.PdfReader(pdf_file)
-                for i in range(min(len(reader.pages), 10)):
-                    page_text = reader.pages[i].extract_text()
-                    if page_text:
-                        pdf_text += page_text + "\n"
-                st.success("PDF Knowledge Integrated.")
-            except:
-                st.error("Could not read PDF.")
-
-    if len(st.session_state.messages) == 0:
-        st.markdown(f"""
-        <div style='text-align:center;padding:40px 20px;'>
-            <p style='font-size:40px;'>✦</p>
-            <p style='color:#4285f4;font-size:18px;font-weight:bold;'>Welcome back, {st.session_state.first_name}!</p>
-            <p style='color:#666;font-size:14px;'>Ask me anything — I am here to help you 24/7</p>
-        </div>
-        """, unsafe_allow_html=True)
-
+    # Render active message loop
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
+    # Setup baseline container string for appending text tokens
+    attached_context = ""
+
+    st.markdown("---")
+    
+    # Render layout trigger bar for options tray
+    c1, c2 = st.columns([1, 10])
+    with c1:
+        btn_label = "✖ Close" if st.session_state.show_tray else "➕"
+        if st.button(btn_label, use_container_width=True, help="Attach media or datasets"):
+            st.session_state.show_tray = not st.session_state.show_tray
+            st.rerun()
+
+    with c2:
+        if st.session_state.show_tray:
+            st.caption("📂 Select an asset type below to attach context to your next prompt:")
+        else:
+            st.caption("Click the ➕ button to upload files or computer vision photos.")
+
+    # Render open Attachment Tray interface elements
+    if st.session_state.show_tray:
+        with st.container(border=True):
+            tray_tabs = st.tabs(["📄 Upload PDF", "📷 Upload Photo", "⚙️ Other Files"])
+            
+            with tray_tabs[0]:
+                pdf_file = st.file_uploader("Select PDF Knowledge Document", type="pdf", label_visibility="collapsed")
+                if pdf_file:
+                    try:
+                        reader = PyPDF2.PdfReader(pdf_file)
+                        pdf_text = ""
+                        for i in range(min(len(reader.pages), 10)):
+                            page_text = reader.pages[i].extract_text()
+                            if page_text:
+                                pdf_text += page_text + "\n"
+                        attached_context += f"\n[Attached PDF Content]:\n{pdf_text[:5000]}"
+                        st.success(f"Context integrated: {pdf_file.name}")
+                    except Exception as e:
+                        st.error(f"Could not parse PDF layout: {e}")
+
+            with tray_tabs[1]:
+                photo_file = st.file_uploader("Select Image for Analysis", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+                if photo_file:
+                    st.image(photo_file, caption="Staged Image Asset", width=300)
+                    attached_context += f"\n[User Attached an Image: {photo_file.name}]"
+                    st.info("Vision asset staged. Processing will complete on submission.")
+
+            with tray_tabs[2]:
+                other_file = st.file_uploader("Select Supplementary Data", type=["txt", "csv", "json"], label_visibility="collapsed")
+                if other_file:
+                    try:
+                        raw_bytes = other_file.read().decode("utf-8")
+                        attached_context += f"\n[Attached File Context ({other_file.name})]:\n{raw_bytes[:3000]}"
+                        st.success(f"Staged text file data: {other_file.name}")
+                    except:
+                        st.error("Could not parse file bytes to text.")
+
+    # Core chat interface bar execution
     if prompt := st.chat_input("Ask Feemo AI anything..."):
+        full_prompt_payload = prompt
+        if attached_context:
+            full_prompt_payload = f"{prompt}\n\n{attached_context}"
+
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
         
-        # Capture the user message down to the database row
         save_chat_message("user", prompt)
             
         try:
@@ -256,12 +286,10 @@ else:
                 "Content-Type": "application/json"
             }
             sys_msg = f"You are Feemo AI, a helpful assistant to {st.session_state.first_name}."
-            if pdf_text:
-                sys_msg += "\n\nContext from PDF:\n" + pdf_text[:7000]
 
             payload = {
                 "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "system", "content": sys_msg}] + st.session_state.messages,
+                "messages": [{"role": "system", "content": sys_msg}] + st.session_state.messages[:-1] + [{"role": "user", "content": full_prompt_payload}],
                 "max_tokens": 1000
             }
 
@@ -278,9 +306,11 @@ else:
                         st.markdown(reply)
                         st.session_state.messages.append({"role": "assistant", "content": reply})
                         
-                        # Capture the assistant message down to the database row
                         save_chat_message("assistant", reply)
+                        
+                        st.session_state.show_tray = False
+                        st.rerun()
                     else:
-                        st.error("Inference structural issue.")
+                        st.error("Inference node returned structural anomaly.")
         except Exception as e:
             st.error(f"Node execution failure: {e}")
