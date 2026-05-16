@@ -27,6 +27,7 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "first_name" not in st.session_state: st.session_state.first_name = "Engineer"
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "show_tray" not in st.session_state: st.session_state.show_tray = False
+if "active_upload_type" not in st.session_state: st.session_state.active_upload_type = None
 
 # 4. THE INTERCEPTOR & SESSION RECOVERY
 def sync_identity():
@@ -81,7 +82,7 @@ def save_chat_message(role, content):
         except:
             pass
 
-# 6. EXACT MATCH REPLICA DESIGN (CSS)
+# 6. FLOATING CONTEXT MENU ENGINE (CSS)
 st.markdown("""
     <style>
     #MainMenu, footer {visibility: hidden !important;}
@@ -108,7 +109,7 @@ st.markdown("""
         padding: 0 !important;
     }
     
-    /* GEMINI SPECIFIC HIGH-RADIUS FLOATING CAPSULE WRAPPER */
+    /* CAPSULE MAIN INPUT WRAPPER PANEL */
     .gemini-capsule-panel {
         background-color: #1e1e22;
         border: 1px solid #2d2d34;
@@ -118,14 +119,10 @@ st.markdown("""
         display: flex;
         flex-direction: column;
         gap: 12px;
+        position: relative;
     }
     
-    /* TOP ROW INPUT WRAPPER */
-    .top-input-row {
-        width: 100%;
-    }
-    
-    /* INVISIBLE TEXT CONTAINER OVERRIDES */
+    /* INVISIBLE TEXT INPUT */
     .stTextInput > div > div > input {
         background-color: transparent !important;
         border: none !important;
@@ -140,17 +137,27 @@ st.markdown("""
         padding: 0 !important;
     }
     
-    /* BOTTOM ROW ACTIONS ROW */
+    /* REPLICATED FLOATING OVERLAY DIALOG */
+    .floating-popup-menu {
+        background-color: #1e1e22;
+        border: 1px solid #2d2d34;
+        border-radius: 20px;
+        padding: 8px;
+        width: 240px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+        margin-bottom: -10px;
+    }
+    
+    /* ACTIONS DECK CONTROL BAR */
     .bottom-action-row {
         display: flex;
         align-items: center;
-        justify-content: list-item;
         width: 100%;
         border-top: 1px solid rgba(255, 255, 255, 0.03);
         padding-top: 10px;
     }
     
-    /* BORDERLESS "+" FORM ACCENT BUTTONS */
+    /* BORDERLESS TOGGLE ICON STYLING */
     div[data-testid="column"] button {
         background-color: transparent !important;
         border: none !important;
@@ -159,10 +166,24 @@ st.markdown("""
         padding: 0 !important;
         line-height: 1 !important;
         width: auto !important;
-        min-width: auto !important;
+        text-align: left !important;
     }
     div[data-testid="column"] button:hover {
         color: #ffffff !important;
+    }
+    
+    /* TRAY SELECTION ITEM SNIPPET ACTION BUTTONS */
+    .tray-item-btn button {
+        text-align: left !important;
+        justify-content: flex-start !important;
+        font-size: 15px !important;
+        color: #ececf1 !important;
+        padding: 10px 16px !important;
+        border-radius: 12px !important;
+        transition: background-color 0.2s;
+    }
+    .tray-item-btn button:hover {
+        background-color: #2a2a30 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -266,83 +287,107 @@ if not st.session_state.authenticated:
                     st.error("Reset failed. Try again.")
     st.stop()
 
-# 9. CHAT WORKSPACE (EXACT TWIN MODEL COPY)
+# 9. CHAT WORKSPACE (EXACT FLOATING MENU MATCH)
 else:
     st.markdown("<div class='logo-container'><span class='logo-symbol'>✦</span><h1 class='logo-text'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
-    # Render history
+    # Render History
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
     attached_context = ""
 
-    # Integrated Asset Tray
-    if st.session_state.show_tray:
-        with st.container(border=True):
-            tray_tabs = st.tabs(["📄 PDF Base", "📷 Vision Photo", "⚙️ Data Matrix"])
-            
-            with tray_tabs[0]:
-                pdf_file = st.file_uploader("Select Knowledge Source Document", type="pdf", label_visibility="collapsed")
-                if pdf_file:
-                    try:
-                        reader = PyPDF2.PdfReader(pdf_file)
-                        pdf_text = ""
-                        for i in range(min(len(reader.pages), 10)):
-                            page_text = reader.pages[i].extract_text()
-                            if page_text: pdf_text += page_text + "\n"
-                        attached_context += f"\n[Attached PDF Content]:\n{pdf_text[:5000]}"
-                        st.success(f"Context loaded: {pdf_file.name}")
-                    except:
-                        st.error("Failed to read PDF.")
-
-            with tray_tabs[1]:
-                photo_file = st.file_uploader("Select Target Frame", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
-                if photo_file:
-                    st.image(photo_file, width=220)
-                    attached_context += f"\n[User Attached an Image: {photo_file.name}]"
-                    st.info("Image staged for processing pipeline.")
-
-            with tray_tabs[2]:
-                other_file = st.file_uploader("Select Raw Dataset", type=["txt", "csv", "json"], label_visibility="collapsed")
-                if other_file:
-                    try:
-                        raw_bytes = other_file.read().decode("utf-8")
-                        attached_context += f"\n[Attached File Context ({other_file.name})]:\n{raw_bytes[:3000]}"
-                        st.success(f"Data staged: {other_file.name}")
-                    except:
-                        st.error("Could not parse file bytes.")
-
-    # --- GEMINI STRUCTURE COMPILING FORM ---
-    with st.form("gemini_layout_form", clear_on_submit=True):
+    # --- NEW: TRUE REPLICA FLOATING POPUP OVERLAY ---
+    if st.session_state.show_tray and not st.session_state.active_upload_type:
+        st.markdown("<div class='floating-popup-menu'>", unsafe_allow_html=True)
         
-        # HTML Core Panel Opener
+        # Action columns inside the menu to match the look
+        st.markdown("<div class='tray-item-btn'>", unsafe_allow_html=True)
+        if st.button("📎 &nbsp; Upload file", key="opt_pdf", use_container_width=True):
+            st.session_state.active_upload_type = "pdf"
+            st.rerun()
+        if st.button("🖼️ &nbsp; Photos", key="opt_photo", use_container_width=True):
+            st.session_state.active_upload_type = "photo"
+            st.rerun()
+        if st.button("📁 &nbsp; Import code", key="opt_code", use_container_width=True):
+            st.session_state.active_upload_type = "code"
+            st.rerun()
+        st.markdown("</div></div>", unsafe_allow_html=True)
+
+    # Render the upload area once a menu option is picked
+    if st.session_state.active_upload_type:
+        with st.container(border=True):
+            c_header, c_close = st.columns([12, 1])
+            with c_close:
+                if st.button("✖", key="close_uploader"):
+                    st.session_state.active_upload_type = None
+                    st.session_state.show_tray = False
+                    st.rerun()
+                    
+            with c_header:
+                if st.session_state.active_upload_type == "pdf":
+                    pdf_file = st.file_uploader("Select Knowledge Document", type="pdf")
+                    if pdf_file:
+                        try:
+                            reader = PyPDF2.PdfReader(pdf_file)
+                            pdf_text = ""
+                            for i in range(min(len(reader.pages), 10)):
+                                page_text = reader.pages[i].extract_text()
+                                if page_text: pdf_text += page_text + "\n"
+                            attached_context += f"\n[Attached PDF Content]:\n{pdf_text[:5000]}"
+                            st.success(f"Context loaded: {pdf_file.name}")
+                        except:
+                            st.error("Could not parse file structure.")
+
+                elif st.session_state.active_upload_type == "photo":
+                    photo_file = st.file_uploader("Select Target Frame", type=["png", "jpg", "jpeg"])
+                    if photo_file:
+                        st.image(photo_file, width=200)
+                        attached_context += f"\n[User Attached an Image: {photo_file.name}]"
+                        st.info("Vision asset staged.")
+
+                elif st.session_state.active_upload_type == "code":
+                    other_file = st.file_uploader("Select Code Script / Dataset", type=["txt", "py", "csv", "json"])
+                    if other_file:
+                        try:
+                            raw_bytes = other_file.read().decode("utf-8")
+                            attached_context += f"\n[Attached File Context ({other_file.name})]:\n{raw_bytes[:3000]}"
+                            st.success(f"Code data staged: {other_file.name}")
+                        except:
+                            st.error("Failed to decode asset.")
+
+    # --- GEMINI INPUT CAPSULE BAR ---
+    with st.form("gemini_layout_form", clear_on_submit=True):
         st.markdown("<div class='gemini-capsule-panel'>", unsafe_allow_html=True)
         
-        # Row 1: Plain Input Field sitting directly at top
+        # Row 1: Chat Field
         st.markdown("<div class='top-input-row'>", unsafe_allow_html=True)
         prompt = st.text_input("Ask Gemini...", placeholder="Ask Gemini", label_visibility="collapsed")
         st.markdown("</div>", unsafe_allow_html=True)
         
-        # Row 2: Bottom Operations Deck housing strictly the layout controls
+        # Row 2: Bottom Menu Icons
         st.markdown("<div class='bottom-action-row'>", unsafe_allow_html=True)
         col_plus, col_empty = st.columns([1, 14])
         
         with col_plus:
-            btn_symbol = "✖" if st.session_state.show_tray else "＋"
-            if st.form_submit_button(btn_symbol, help="Upload assets to context"):
+            # Replicated plain "+" icon button
+            if st.form_submit_button("＋"):
                 st.session_state.show_tray = not st.session_state.show_tray
+                # Reset item states if the menu is closed
+                if not st.session_state.show_tray:
+                    st.session_state.active_upload_type = None
                 st.rerun()
                 
-        st.markdown("</div>", unsafe_allow_html=True) # End actions row
-        st.markdown("</div>", unsafe_allow_html=True) # End entire panel structure
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
         
-        # Completely hidden element to capture Enter strokes
+        # Hidden submit logic
         st.markdown("<div style='display:none;'>", unsafe_allow_html=True)
         submit_chat = st.form_submit_button("SUBMIT")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Processing Sequence
+    # Process submission
     if submit_chat and prompt:
         full_prompt_payload = prompt
         if attached_context:
@@ -350,6 +395,8 @@ else:
 
         st.session_state.messages.append({"role": "user", "content": prompt})
         save_chat_message("user", prompt)
+        st.session_state.show_tray = False
+        st.session_state.active_upload_type = None
         st.rerun()
 
     # Async Response Parser
@@ -371,7 +418,6 @@ else:
                 reply = res["choices"][0]["message"]["content"]
                 st.session_state.messages.append({"role": "assistant", "content": reply})
                 save_chat_message("assistant", reply)
-                st.session_state.show_tray = False
                 st.rerun()
         except:
             pass
