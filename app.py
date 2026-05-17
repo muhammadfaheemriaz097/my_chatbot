@@ -16,9 +16,9 @@ st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
 
 # ── 3. SESSION STATE ──────────────────────────────────────────────────────────
 for k, v in {
-    "authenticated": False, "messages": [], "first_name": "User",
+    "authenticated": False, "messages": [], "first_name": "Engineer",
     "user_id": None, "show_tray": False, "active_upload_type": None,
-    "theme": "dark"
+    "theme": "dark", "staged_context": ""
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -89,7 +89,7 @@ def save_chat_message(role, content):
         except:
             pass
 
-# ── 6. THEME ──────────────────────────────────────────────────────────────────
+# ── 6. THEME CONFIGURATION ────────────────────────────────────────────────────
 IS_DARK = st.session_state.theme == "dark"
 T = {
     "bg":      "#0e0e10" if IS_DARK else "#f4f4f6",
@@ -111,140 +111,89 @@ TYPING_HTML = """
 <style>
 @keyframes fb{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-6px);opacity:1}}
 .ft{display:flex;align-items:center;gap:5px;padding:12px 16px}
-.ft span{width:8px;height:8px;border-radius:50%;background:#4285f4;display:inline-block;
-         animation:fb 1.2s infinite ease-in-out}
+.ft span{width:8px;height:8px;border-radius:50%;background:#4285f4;display:inline-block;animation:fb 1.2s infinite ease-in-out}
 .ft span:nth-child(2){animation-delay:.2s}.ft span:nth-child(3){animation-delay:.4s}
 </style>
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS ─────────────────────────────────────────────────────────────
+# ── 8. GLOBAL CSS OVERRIDES ───────────────────────────────────────────────────
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
 
+/* Hide Dev Header Elements */
+header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
+div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
+.manage-app-button {{ display: none !important; }}
+
 #MainMenu,footer{{visibility:hidden!important}}
 .stApp{{background:{T["bg"]};color:{T["text"]};font-family:'Inter',sans-serif}}
-.block-container{{max-width:860px;padding-top:3.5rem!important;margin:auto}}
+.block-container{{max-width:860px;padding-top:2.5rem!important;margin:auto}}
 
-/* Logo */
+/* Brand Logo Layout */
 .logo-wrap{{display:flex;justify-content:center;align-items:center;margin-bottom:36px}}
 .logo-txt{{font-size:52px;font-weight:800;letter-spacing:-2px;margin:0;
   background:linear-gradient(90deg,#4285f4,#9b72cb,#d96570,#f4af45);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent}}
 .logo-sym{{font-size:42px;margin-right:14px;color:#4285f4}}
 
-/* Sidebar */
-section[data-testid="stSidebar"]{{background:{T["sb_bg"]}!important;
-  border-right:1px solid {T["sb_bdr"]}!important}}
-
-/* Messages */
+/* Navigation Sidebar */
+section[data-testid="stSidebar"]{{background:{T["sb_bg"]}!important;border-right:1px solid {T["sb_bdr"]}!important}}
 .stChatMessage p{{color:{T["msg_t"]}!important;font-size:15px!important;line-height:1.8!important}}
 
-/* Remove form border/bg */
-div[data-testid="stForm"]{{border:none!important;background:transparent!important;padding:0!important}}
-
-/* ═══ PILL WRAPPER ═══════════════════════════════════════════════
-   Wraps the st.form so columns visually merge into a single bar  */
+/* Base Layout Wrapper Panel */
 .chat-pill-outer{{
-  display:flex;
-  align-items:center;
-  background:{T["pill_bg"]};
-  border:1px solid {T["pill_bd"]};
-  border-radius:999px;
-  padding:5px 6px;
-  box-shadow:0 6px 28px rgba(0,0,0,.45);
+  display:flex;align-items:center;background:{T["pill_bg"]};border:1px solid {T["pill_bd"]};
+  border-radius:32px;padding:6px 14px;box-shadow:0 8px 32px rgba(0,0,0,.35);margin-top:10px;
 }}
 
-/* Strip all inner gaps Streamlit adds */
-.chat-pill-outer > div > div[data-testid="stForm"] > div,
-.chat-pill-outer div[data-testid="stHorizontalBlock"]{{
-  gap:0!important;
-  align-items:center!important;
-  width:100%!important;
-}}
-.chat-pill-outer div[data-testid="column"]{{padding:0!important;min-width:0!important}}
+/* Structural Inline Configuration */
+div[data-testid="stHorizontalBlock"]{{gap:12px!important;align-items:center!important;width:100%!important}}
+div[data-testid="column"]{{padding:0!important;min-width:0!important}}
 
-/* ── + button ── */
-.plus-col button{{
-  background:transparent!important;
-  border:1.5px solid {T["pill_bd"]}!important;
-  border-radius:50%!important;
-  width:34px!important;height:34px!important;min-height:34px!important;
-  font-size:22px!important;font-weight:300!important;
-  color:{T["ph_col"]}!important;
-  padding:0!important;line-height:1!important;
-  transition:all .2s!important;
+/* Borderless Utility Buttons */
+div[data-testid="column"] button{{
+  background:transparent!important;border:none!important;color:{T["ph_col"]}!important;
+  font-size:22px!important;padding:0!important;line-height:1!important;width:auto!important;
 }}
-.plus-col button:hover{{border-color:#4285f4!important;color:#4285f4!important}}
+div[data-testid="column"] button:hover{{color:#4285f4!important}}
 
-/* ── text input ── */
+/* Text Area Style Neutralization */
 .text-col .stTextInput>div>div>input{{
   background:transparent!important;border:none!important;box-shadow:none!important;
-  color:{T["inp_col"]}!important;font-size:16px!important;
-  padding:6px 6px!important;height:34px!important;
+  color:{T["inp_col"]}!important;font-size:16px!important;padding:4px 0!important;
 }}
-.text-col .stTextInput>div>div{{
-  border:none!important;background:transparent!important;
-  box-shadow:none!important;padding:0!important;
-}}
+.text-col .stTextInput>div>div{{border:none!important;background:transparent!important;box-shadow:none!important;padding:0!important}}
 .text-col .stTextInput>label{{display:none!important}}
-.text-col .stTextInput>div>div>input::placeholder{{
-  color:{T["ph_col"]}!important;opacity:1!important}}
 
-/* ── send arrow ── */
-.send-col button{{
-  background:#4285f4!important;border:none!important;
-  border-radius:50%!important;
-  width:34px!important;height:34px!important;min-height:34px!important;
-  font-size:15px!important;color:#fff!important;
-  padding:0!important;line-height:1!important;
-  transition:background .2s!important;
-}}
-.send-col button:hover{{background:#2a6dd9!important}}
-
-/* Tray popup */
+/* Gemini Menu Panel */
 .gemini-tray{{
-  background:{T["pop_bg"]};border:1px solid {T["pop_bd"]};
-  border-radius:16px;padding:6px 0;width:260px;
-  box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden;margin-bottom:8px;
+  background:{T["pop_bg"]};border:1px solid {T["pop_bd"]};border-radius:20px;
+  padding:8px 0;width:240px;box-shadow:0 12px 36px rgba(0,0,0,.5);margin-bottom:8px;
 }}
 .gemini-tray-item{{
-  display:flex;align-items:center;gap:14px;padding:11px 18px;
-  color:{T["text"]};font-size:14.5px;font-weight:500;
-  border:none;background:transparent;width:100%;text-align:left;transition:background .15s;
+  display:flex;align-items:center;gap:12px;padding:10px 18px;color:{T["text"]};font-size:14.5px;font-weight:500;
+  border:none;background:transparent;width:100%;text-align:left;cursor:pointer;
 }}
-.gemini-tray-item:hover{{background:{T["hov"]}}}
-.gemini-tray-divider{{height:1px;background:{T["pop_bd"]};margin:4px 0}}
+.gemini-tray-divider{{height:1px;background:{T["pop_bd"]};margin:6px 0}}
 .tray-item-btn button{{
-  text-align:left!important;justify-content:flex-start!important;
-  font-size:15px!important;color:{T["text"]}!important;
-  padding:10px 16px!important;border-radius:12px!important;
-  background:transparent!important;border:none!important;width:100%!important;
+  text-align:left!important;justify-content:flex-start!important;font-size:15px!important;color:{T["text"]}!important;
+  padding:10px 16px!important;border-radius:12px!important;width:100%!important;
 }}
 .tray-item-btn button:hover{{background:{T["hov"]}!important}}
 
-/* New Chat button */
+/* Control Button Custom Styles */
 .new-chat-btn button{{
-  background:linear-gradient(135deg,#4285f4,#9b72cb)!important;
-  border:none!important;border-radius:12px!important;
-  color:#fff!important;font-weight:600!important;font-size:14px!important;
-  padding:10px 0!important;transition:opacity .2s!important;
+  background:linear-gradient(135deg,#4285f4,#9b72cb)!important;border:none!important;border-radius:12px!important;
+  color:#fff!important;font-weight:600!important;font-size:14px!important;padding:10px 0!important;
 }}
-.new-chat-btn button:hover{{opacity:.85!important}}
-
-/* Theme toggle */
-.theme-btn button{{
-  background:transparent!important;
-  border:1px solid {T["pill_bd"]}!important;
-  border-radius:20px!important;color:{T["text"]}!important;
-  font-size:13px!important;padding:4px 14px!important;width:auto!important;
-}}
+.new-chat-btn button:hover{{opacity:.9!important}}
+.theme-btn button{{background:transparent!important;border:1px solid {T["pill_bd"]}!important;border-radius:20px!important;color:{T["text"]}!important;font-size:13px!important;padding:4px 14px!important;width:auto!important}}
 </style>""", unsafe_allow_html=True)
 
-# ── 9. SIDEBAR ────────────────────────────────────────────────────────────────
+# ── 9. SIDEBAR NAVIGATION ─────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>",
-                unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>", unsafe_allow_html=True)
 
     st.markdown("<div class='theme-btn'>", unsafe_allow_html=True)
     if st.button("☀️ Light Mode" if IS_DARK else "🌙 Dark Mode", key="theme_toggle"):
@@ -253,24 +202,19 @@ with st.sidebar:
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.authenticated:
-        st.markdown(
-            f"<p style='color:{T['text']};margin:12px 0 4px'>👤 <b>{st.session_state.first_name}</b></p>",
-            unsafe_allow_html=True)
+        st.markdown(f"<p style='color:{T['text']};margin:12px 0 4px'>👤 <b>{st.session_state.first_name}</b></p>", unsafe_allow_html=True)
         st.markdown("---")
 
-        # New Chat
         st.markdown("<div class='new-chat-btn'>", unsafe_allow_html=True)
         if st.button("✦  New Chat", key="new_chat_btn", use_container_width=True):
             st.session_state.messages = []
             st.session_state.show_tray = False
             st.session_state.active_upload_type = None
+            st.session_state.staged_context = ""
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown(
-            "<p style='color:#888;font-size:11px;font-weight:700;"
-            "margin:14px 0 6px;letter-spacing:.8px'>RECENT CHATS</p>",
-            unsafe_allow_html=True)
+        st.markdown("<p style='color:#888;font-size:11px;font-weight:700;margin:14px 0 6px;letter-spacing:.8px'>RECENT CHATS</p>", unsafe_allow_html=True)
 
         recent = load_chat_history()
         if recent:
@@ -293,38 +237,31 @@ with st.sidebar:
     else:
         st.info("Log in to start chatting.")
 
-# ── 10. AUTH GATE ─────────────────────────────────────────────────────────────
+# ── 10. AUTH GATEWAY ──────────────────────────────────────────────────────────
 if not st.session_state.authenticated:
-    st.markdown(
-        "<div class='logo-wrap'><span class='logo-sym'>✦</span>"
-        "<h1 class='logo-txt'>FEEMO AI</h1></div>",
-        unsafe_allow_html=True)
+    st.markdown("<div class='logo-wrap'><span class='logo-sym'>✦</span><h1 class='logo-txt'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     t1, t2, t3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
 
     with t1:
         try:
             g = supabase.auth.sign_in_with_oauth({"provider": "google", "options": {
-                "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
-                "skip_browser_redirect": True}})
+                "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/", "skip_browser_redirect": True}})
             if g and g.url:
                 st.link_button("Continue with Google 🌐", g.url, use_container_width=True)
         except Exception as e:
             st.error(f"Google setup error: {e}")
-        st.markdown("<p style='text-align:center;color:#888;margin:10px 0'>OR</p>",
-                    unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center;color:#888;margin:10px 0'>OR</p>", unsafe_allow_html=True)
         with st.form("login_form"):
             email = st.text_input("Email")
             password = st.text_input("Password", type="password")
             if st.form_submit_button("LOGIN", use_container_width=True):
                 try:
-                    r = supabase.auth.sign_in_with_password(
-                        {"email": email, "password": password})
+                    r = supabase.auth.sign_in_with_password({"email": email, "password": password})
                     if r.user:
                         st.session_state.authenticated = True
                         st.session_state.user_id = r.user.id
                         meta = r.user.user_metadata or {}
-                        st.session_state.first_name = (
-                            meta.get("full_name") or email.split("@")[0])
+                        st.session_state.first_name = (meta.get("full_name") or email.split("@")[0])
                         st.rerun()
                 except: st.error("Invalid email or password.")
 
@@ -335,8 +272,7 @@ if not st.session_state.authenticated:
             reg_pass  = st.text_input("Password", type="password")
             if st.form_submit_button("REGISTER", use_container_width=True):
                 try:
-                    supabase.auth.sign_up({"email": reg_email, "password": reg_pass,
-                                           "options": {"data": {"full_name": full_name}}})
+                    supabase.auth.sign_up({"email": reg_email, "password": reg_pass, "options": {"data": {"full_name": full_name}}})
                     st.success("Check your email for the verification link.")
                 except: st.error("Signup failed. Try again.")
 
@@ -351,58 +287,36 @@ if not st.session_state.authenticated:
     st.stop()
 
 # ── 11. CHAT WORKSPACE ────────────────────────────────────────────────────────
-st.markdown(
-    "<div class='logo-wrap'><span class='logo-sym'>✦</span>"
-    "<h1 class='logo-txt'>FEEMO AI</h1></div>",
-    unsafe_allow_html=True)
+st.markdown("<div class='logo-wrap'><span class='logo-sym'>✦</span><h1 class='logo-txt'>FEEMO AI</h1></div>", unsafe_allow_html=True)
 
+# Render Chat History Nodes
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-attached_context = ""
-
-# Tray popup
+# Render Floating Context Selection Menu Overlay
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
-      <div class="gemini-tray-item">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{T['text']}"
-          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66
-                   L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-        </svg> Upload file
-      </div>
+      <div class="gemini-tray-item">📎 &nbsp; Upload file</div>
       <div class="gemini-tray-divider"></div>
-      <div class="gemini-tray-item">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{T['text']}"
-          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2"/>
-          <circle cx="8.5" cy="8.5" r="1.5"/>
-          <polyline points="21 15 16 10 5 21"/>
-        </svg> Photos
-      </div>
-      <div class="gemini-tray-item">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{T['text']}"
-          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="16 18 22 12 16 6"/>
-          <polyline points="8 6 2 12 8 18"/>
-        </svg> Import code
-      </div>
+      <div class="gemini-tray-item">🖼️ &nbsp; Photos</div>
+      <div class="gemini-tray-divider"></div>
+      <div class="gemini-tray-item">📁 &nbsp; Import code</div>
     </div>""", unsafe_allow_html=True)
-    ca, cb, cc = st.columns(3)
-    for col, label, key, utype in [
-        (ca, "📎 Upload file", "opt_pdf",   "pdf"),
-        (cb, "🖼️ Photos",      "opt_photo", "photo"),
-        (cc, "📁 Import code", "opt_code",  "code"),
-    ]:
-        with col:
-            st.markdown("<div class='tray-item-btn'>", unsafe_allow_html=True)
-            if st.button(label, key=key, use_container_width=True):
-                st.session_state.active_upload_type = utype; st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+    
+    ca, cb, cc = st.columns([1, 1, 1])
+    with ca:
+        if st.button("📎 Upload file", key="opt_pdf", use_container_width=True):
+            st.session_state.active_upload_type = "pdf"; st.rerun()
+    with cb:
+        if st.button("🖼️ Photos", key="opt_photo", use_container_width=True):
+            st.session_state.active_upload_type = "photo"; st.rerun()
+    with cc:
+        if st.button("📁 Import code", key="opt_code", use_container_width=True):
+            st.session_state.active_upload_type = "code"; st.rerun()
 
-# Upload panel
+# Render Explicit File Context Capture Drops
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -419,83 +333,45 @@ if st.session_state.active_upload_type:
                     try:
                         reader = PyPDF2.PdfReader(f)
                         txt = "".join(p.extract_text() or "" for p in reader.pages[:10])
-                        attached_context += f"\n[PDF: {f.name}]:\n{txt[:5000]}"
-                        st.success(f"Loaded: {f.name}")
+                        st.session_state.staged_context += f"\n[PDF: {f.name}]:\n{txt[:5000]}"
+                        st.success(f"Context Staged: {f.name}")
                     except: st.error("Could not parse PDF.")
             elif atype == "photo":
                 f = st.file_uploader("Image", type=["png", "jpg", "jpeg"])
                 if f:
                     st.image(f, width=200)
-                    attached_context += f"\n[Image: {f.name}]"
+                    st.session_state.staged_context += f"\n[Image: {f.name}]"
+                    st.success(f"Vision Asset Staged: {f.name}")
             elif atype == "code":
                 f = st.file_uploader("Code / Data file", type=["txt", "py", "csv", "json"])
                 if f:
                     try:
-                        attached_context += f"\n[File: {f.name}]:\n{f.read().decode('utf-8')[:3000]}"
-                        st.success(f"Loaded: {f.name}")
+                        st.session_state.staged_context += f"\n[File: {f.name}]:\n{f.read().decode('utf-8')[:3000]}"
+                        st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── INPUT BAR ─────────────────────────────────────────────────────────────────
+# ── CAPSULE CHAT PILL BAR INTERFACE ───────────────────────────────────────────
 st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
-with st.form("chat_form", clear_on_submit=True):
-    col_plus, col_text, col_send = st.columns([0.6, 10, 0.6])
-    with col_plus:
-        st.markdown("<div class='plus-col'>", unsafe_allow_html=True)
-        plus_clicked = st.form_submit_button("＋")
-        st.markdown("</div>", unsafe_allow_html=True)
-    with col_text:
-        st.markdown("<div class='text-col'>", unsafe_allow_html=True)
-        prompt = st.text_input("msg", placeholder="Ask Feemo AI anything…",
-                               label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
-    with col_send:
-        st.markdown("<div class='send-col'>", unsafe_allow_html=True)
-        send_clicked = st.form_submit_button("➤")
-        st.markdown("</div>", unsafe_allow_html=True)
+col_plus, col_text, col_send = st.columns([0.6, 14.8, 0.6])
+
+with col_plus:
+    # Explicit formless button handles overlay layout switches cleanly
+    if st.button("＋", key="tray_toggle_trigger"):
+        st.session_state.show_tray = not st.session_state.show_tray
+        if not st.session_state.show_tray:
+            st.session_state.active_upload_type = None
+        st.rerun()
+
+with col_text:
+    st.markdown("<div class='text-col'>", unsafe_allow_html=True)
+    prompt = st.text_input("msg", placeholder="Ask Feemo AI anything…", label_visibility="collapsed", key="user_prompt_input")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col_send:
+    # Clicking this or running native keyboard enters executes code evaluations perfectly
+    send_triggered = st.button("➤", key="send_action_trigger")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Handle + toggle
-if plus_clicked:
-    st.session_state.show_tray = not st.session_state.show_tray
-    if not st.session_state.show_tray:
-        st.session_state.active_upload_type = None
-    st.rerun()
-
-# Handle send
-if send_clicked and prompt:
-    full_payload = prompt + (f"\n\n{attached_context}" if attached_context else "")
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    save_chat_message("user", prompt)
-    st.session_state.show_tray = False
-    st.session_state.active_upload_type = None
-    st.rerun()
-
-# ── AI RESPONSE ───────────────────────────────────────────────────────────────
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    ph = st.empty()
-    ph.markdown(TYPING_HTML, unsafe_allow_html=True)
-    try:
-        res = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"],
-                     "Content-Type": "application/json"},
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [
-                    {"role": "system",
-                     "content": f"You are Feemo AI, a helpful assistant to {st.session_state.first_name}."}
-                ] + st.session_state.messages,
-                "max_tokens": 1000
-            }
-        ).json()
-        if "choices" in res:
-            reply = res["choices"][0]["message"]["content"]
-            ph.empty()
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-            save_chat_message("assistant", reply)
-            st.rerun()
-        else:
-            ph.empty()
-    except Exception as ex:
-        ph.empty()
-        st.error(f"API error: {ex}")
+# Parse Message and Payload Deliveries 
+if (send_triggered or (prompt and prompt != "")) and prompt:
+    # Gather any context
