@@ -483,15 +483,19 @@ window.addEventListener('message', function(event) {
 # Hidden native Streamlit chat_input — receives text from postMessage bridge above
 prompt = st.chat_input("Ask Feemo AI anything...", key="native_chat_input")
 
-# Hidden tray toggle button that JS can click
-col_hidden = st.columns([1])[0]
-with col_hidden:
-    st.markdown('<span data-testid="feemo_tray_internal" style="display:none"></span>', unsafe_allow_html=True)
-    if st.button("__tray__", key="feemo_tray_internal", help="tray", label_visibility="hidden"):
-        st.session_state.show_tray = not st.session_state.show_tray
-        if not st.session_state.show_tray:
-            st.session_state.active_upload_type = None
-        st.rerun()
+# Hidden tray toggle button that JS can click (hidden via CSS, not label_visibility)
+st.markdown("""
+<style>
+div[data-testid="feemo_tray_internal_wrap"] { position:absolute; opacity:0; pointer-events:none; height:0; overflow:hidden; }
+</style>
+<div data-testid="feemo_tray_internal_wrap">
+""", unsafe_allow_html=True)
+if st.button("__tray__", key="feemo_tray_internal"):
+    st.session_state.show_tray = not st.session_state.show_tray
+    if not st.session_state.show_tray:
+        st.session_state.active_upload_type = None
+    st.rerun()
+st.markdown("</div>", unsafe_allow_html=True)
 
 # ── 13. PROCESS SUBMITTED PROMPT ─────────────────────────────────────────────
 if prompt and prompt.strip():
