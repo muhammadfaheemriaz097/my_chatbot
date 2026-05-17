@@ -185,78 +185,78 @@ st.markdown(f"""
         padding: 0 !important;
     }}
 
-    /* ── SINGLE-ROW INPUT PILL ── */
-    .input-pill-row {{
-        display: flex;
-        align-items: center;
-        background-color: {THEME["capsule_bg"]};
-        border: 1px solid {THEME["capsule_border"]};
-        border-radius: 999px;
-        padding: 8px 14px 8px 10px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.45);
-        gap: 6px;
+    /* ── NATIVE CHAT INPUT STYLING ── */
+
+    /* The chat input bar — make it look like a pill */
+    div[data-testid="stChatInput"] {{
+        background-color: {THEME["capsule_bg"]} !important;
+        border: 1px solid {THEME["capsule_border"]} !important;
+        border-radius: 999px !important;
+        padding: 4px 8px 4px 52px !important;  /* left padding leaves room for + */
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+        max-width: 850px !important;
+        margin: 0 auto !important;
+        position: relative !important;
     }}
 
-    /* hide streamlit column gaps inside the pill */
-    .input-pill-row div[data-testid="column"] {{
-        padding: 0 !important;
-    }}
-
-    /* text input inside pill */
-    .input-pill-row .stTextInput > div > div > input {{
+    /* Text area inside chat input */
+    div[data-testid="stChatInput"] textarea {{
         background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
         color: {THEME["input_color"]} !important;
         font-size: 16px !important;
-        padding: 6px 0 !important;
-    }}
-    .input-pill-row .stTextInput > div > div {{
+        font-family: 'Inter', sans-serif !important;
         border: none !important;
-        background: transparent !important;
         box-shadow: none !important;
+        resize: none !important;
+        min-height: 44px !important;
+        padding: 10px 0 !important;
     }}
-    .input-pill-row .stTextInput > label {{ display: none !important; }}
+    div[data-testid="stChatInput"] textarea::placeholder {{
+        color: {THEME["icon_color"]} !important;
+        opacity: 1 !important;
+    }}
 
-    /* + circle button */
-    .pill-icon-btn button {{
-        background: transparent !important;
+    /* Send arrow button inside chat input */
+    div[data-testid="stChatInput"] button {{
+        background-color: #4285f4 !important;
+        border: none !important;
+        border-radius: 50% !important;
+        width: 36px !important;
+        height: 36px !important;
+        color: white !important;
+        transition: background 0.2s !important;
+    }}
+    div[data-testid="stChatInput"] button:hover {{
+        background-color: #2a6dd9 !important;
+    }}
+
+    /* ── FLOATING + BUTTON ── */
+    /* Wrap column so we can position the button over the chat input */
+    .float-plus-wrap {{
+        position: relative;
+        z-index: 100;
+        margin-bottom: -52px;  /* pull it up to overlap the chat input */
+        margin-left: 8px;
+    }}
+    .float-plus-wrap button {{
+        background-color: transparent !important;
         border: 1.5px solid {THEME["capsule_border"]} !important;
         border-radius: 50% !important;
         width: 36px !important;
         height: 36px !important;
-        padding: 0 !important;
         font-size: 20px !important;
         color: {THEME["icon_color"]} !important;
+        padding: 0 !important;
         line-height: 1 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         transition: all 0.2s !important;
+        cursor: pointer !important;
     }}
-    .pill-icon-btn button:hover {{
+    .float-plus-wrap button:hover {{
         border-color: #4285f4 !important;
         color: #4285f4 !important;
-    }}
-
-    /* ➤ send arrow button */
-    .pill-send-btn button {{
-        background: #4285f4 !important;
-        border: none !important;
-        border-radius: 50% !important;
-        width: 36px !important;
-        height: 36px !important;
-        padding: 0 !important;
-        font-size: 16px !important;
-        color: #ffffff !important;
-        line-height: 1 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        transition: background 0.2s !important;
-    }}
-    .pill-send-btn button:hover {{
-        background: #2a6dd9 !important;
     }}
 
     /* TEXT INPUT */
@@ -567,39 +567,24 @@ else:
                         except:
                             st.error("Failed to decode asset.")
 
-    # ── SINGLE-ROW INPUT PILL:  [+]  [text input]  [➤]  ──
-    with st.form("chat_input_form", clear_on_submit=True):
-        st.markdown("<div class='input-pill-row'>", unsafe_allow_html=True)
-
-        col_plus, col_text, col_send = st.columns([1, 14, 1])
-
-        with col_plus:
-            st.markdown("<div class='pill-icon-btn'>", unsafe_allow_html=True)
-            tray_clicked = st.form_submit_button("＋", help="Attach file / photo / code")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        with col_text:
-            prompt = st.text_input(
-                "msg", placeholder="Ask Feemo AI anything...",
-                label_visibility="collapsed"
-            )
-
-        with col_send:
-            st.markdown("<div class='pill-send-btn'>", unsafe_allow_html=True)
-            submit_chat = st.form_submit_button("➤")
-            st.markdown("</div>", unsafe_allow_html=True)
-
+    # ── TRUE SINGLE-ROW INPUT: st.chat_input (arrow built-in) + floating + ──
+    
+    # Floating + button ABOVE the chat input using a positioned container
+    btn_col, _ = st.columns([1, 20])
+    with btn_col:
+        st.markdown("<div class='float-plus-wrap'>", unsafe_allow_html=True)
+        if st.button("＋", key="tray_toggle_btn"):
+            st.session_state.show_tray = not st.session_state.show_tray
+            if not st.session_state.show_tray:
+                st.session_state.active_upload_type = None
+            st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Handle tray toggle (+ button)
-    if tray_clicked:
-        st.session_state.show_tray = not st.session_state.show_tray
-        if not st.session_state.show_tray:
-            st.session_state.active_upload_type = None
-        st.rerun()
+    # Native Streamlit chat input — renders as single pill with arrow
+    prompt = st.chat_input("Ask Feemo AI anything...")
 
     # Handle new user message
-    if submit_chat and prompt:
+    if prompt:
         full_prompt_payload = prompt
         if attached_context:
             full_prompt_payload = f"{prompt}\n\n{attached_context}"
@@ -610,7 +595,7 @@ else:
         st.session_state.active_upload_type = None
         st.rerun()
 
-    # ── ASYNC RESPONSE WITH TYPING INDICATOR (UPDATED) ──
+    # ── ASYNC RESPONSE WITH TYPING INDICATOR ──
     if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
 
         # Show typing indicator while fetching
