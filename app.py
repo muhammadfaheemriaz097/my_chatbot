@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 import PyPDF2
 from supabase import create_client
-import streamlit.components.v1 as components
 
 # ── 1. DATABASE INIT ──────────────────────────────────────────────────────────
 try:
@@ -19,7 +18,7 @@ st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
 for k, v in {
     "authenticated": False, "messages": [], "first_name": "Engineer",
     "user_id": None, "show_tray": False, "active_upload_type": None,
-    "theme": "dark", "staged_context": "", "pending_prompt": ""
+    "theme": "dark", "staged_context": ""
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -90,7 +89,7 @@ def save_chat_message(role, content):
         except:
             pass
 
-# ── 6. THEME CONFIGURATION ────────────────────────────────────────────────────
+# ── 6. THEME ──────────────────────────────────────────────────────────────────
 IS_DARK = st.session_state.theme == "dark"
 T = {
     "bg":      "#0e0e10" if IS_DARK else "#f4f4f6",
@@ -118,71 +117,128 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS OVERRIDES ───────────────────────────────────────────────────
-# NOTE: Only hide the deploy/menu bar items, NOT the entire header,
-# so the sidebar toggle chevron remains visible.
+# ── 8. GLOBAL CSS ─────────────────────────────────────────────────────────────
 st.markdown(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
 
-/* Hide only the Streamlit top-bar action buttons, keep sidebar toggle */
-div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
-.manage-app-button {{ display: none !important; }}
-button[kind="header"] {{ display: none !important; }}
-#MainMenu {{ visibility: hidden !important; }}
+/* Hide Streamlit chrome but KEEP sidebar toggle working */
+div[data-testid="stStatusWidget"],
+.manage-app-button,
+#MainMenu,
 footer {{ visibility: hidden !important; }}
 
-/* Keep the header bar itself visible so the sidebar toggle works,
-   but make it transparent / zero-height so it doesn't take space */
+/* Make header transparent so sidebar toggle button still exists in DOM */
 header[data-testid="stHeader"] {{
     background: transparent !important;
-    height: 0px !important;
-    min-height: 0px !important;
+    height: 2.5rem !important;
 }}
 
-.stApp{{background:{T["bg"]};color:{T["text"]};font-family:'Inter',sans-serif}}
-.block-container{{max-width:860px;padding-top:2.5rem!important;margin:auto}}
+.stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
+.block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Brand Logo Layout */
-.logo-wrap{{display:flex;justify-content:center;align-items:center;margin-bottom:36px}}
-.logo-txt{{font-size:52px;font-weight:800;letter-spacing:-2px;margin:0;
-  background:linear-gradient(90deg,#4285f4,#9b72cb,#d96570,#f4af45);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent}}
-.logo-sym{{font-size:42px;margin-right:14px;color:#4285f4}}
-
-/* Navigation Sidebar */
-section[data-testid="stSidebar"]{{background:{T["sb_bg"]}!important;border-right:1px solid {T["sb_bdr"]}!important}}
-.stChatMessage p{{color:{T["msg_t"]}!important;font-size:15px!important;line-height:1.8!important}}
-
-/* Gemini Menu Panel */
-.gemini-tray{{
-  background:{T["pop_bg"]};border:1px solid {T["pop_bd"]};border-radius:20px;
-  padding:8px 0;width:240px;box-shadow:0 12px 36px rgba(0,0,0,.5);margin-bottom:8px;
+/* Logo */
+.logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
+.logo-txt {{
+    font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
+    background:linear-gradient(90deg,#4285f4,#9b72cb,#d96570,#f4af45);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
 }}
-.gemini-tray-item{{
-  display:flex;align-items:center;gap:12px;padding:10px 18px;color:{T["text"]};font-size:14.5px;font-weight:500;
-  border:none;background:transparent;width:100%;text-align:left;
-}}
-.gemini-tray-divider{{height:1px;background:{T["pop_bd"]};margin:6px 0}}
-.tray-item-btn button{{
-  text-align:left!important;justify-content:flex-start!important;font-size:15px!important;color:{T["text"]}!important;
-  padding:10px 16px!important;border-radius:12px!important;width:100%!important;
-}}
-.tray-item-btn button:hover{{background:{T["hov"]}!important}}
+.logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-.new-chat-btn button{{
-  background:linear-gradient(135deg,#4285f4,#9b72cb)!important;border:none!important;border-radius:12px!important;
-  color:#fff!important;font-weight:600!important;font-size:14px!important;padding:10px 0!important;width:100% !important;
+/* Sidebar */
+section[data-testid="stSidebar"] {{
+    background:{T["sb_bg"]} !important;
+    border-right:1px solid {T["sb_bdr"]} !important;
 }}
-.new-chat-btn button:hover{{opacity:.9!important}}
-.theme-btn button{{background:transparent!important;border:1px solid {T["pill_bd"]}!important;border-radius:20px!important;color:{T["text"]}!important;font-size:13px!important;padding:4px 14px!important;width:auto!important}}
+.stChatMessage p {{
+    color:{T["msg_t"]} !important;
+    font-size:15px !important;
+    line-height:1.8 !important;
+}}
 
-/* Hide the default Streamlit chat_input so only our custom pill shows */
-div[data-testid="stChatInput"] {{ display: none !important; }}
+/* ── PILL CHAT INPUT ── */
+div[data-testid="stBottom"] > div {{
+    background: transparent !important;
+    padding: 8px 0 16px 0 !important;
+}}
+div[data-testid="stChatInput"] {{
+    background: {T["pill_bg"]} !important;
+    border: 1px solid {T["pill_bd"]} !important;
+    border-radius: 32px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
+    padding: 2px 8px !important;
+    max-width: 860px !important;
+    margin: 0 auto !important;
+}}
+div[data-testid="stChatInput"] textarea {{
+    background: transparent !important;
+    color: {T["inp_col"]} !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 15px !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}}
+div[data-testid="stChatInput"] textarea::placeholder {{
+    color: {T["ph_col"]} !important;
+    opacity: 1 !important;
+}}
+div[data-testid="stChatInput"] button {{
+    background: #4285f4 !important;
+    border-radius: 50% !important;
+    color: #fff !important;
+    border: none !important;
+}}
+div[data-testid="stChatInput"] button:hover {{
+    background: #2a6dd9 !important;
+}}
+
+/* Tray toggle button */
+div[data-testid="stHorizontalBlock"] .tray-col button {{
+    background: {T["pill_bg"]} !important;
+    border: 1px solid {T["pill_bd"]} !important;
+    border-radius: 50% !important;
+    color: {T["ph_col"]} !important;
+    font-size: 20px !important;
+    height: 42px !important;
+    width: 42px !important;
+    padding: 0 !important;
+}}
+div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
+    color: #4285f4 !important;
+    border-color: #4285f4 !important;
+}}
+
+/* Tray panel */
+.gemini-tray {{
+    background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
+    padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
+}}
+.gemini-tray-item {{
+    display:flex; align-items:center; gap:12px; padding:10px 18px;
+    color:{T["text"]}; font-size:14px; font-weight:500;
+}}
+.gemini-tray-divider {{ height:1px; background:{T["pop_bd"]}; margin:4px 0; }}
+
+/* Sidebar buttons */
+.new-chat-btn button {{
+    background:linear-gradient(135deg,#4285f4,#9b72cb) !important;
+    border:none !important; border-radius:12px !important;
+    color:#fff !important; font-weight:600 !important; font-size:14px !important;
+}}
+.theme-btn button {{
+    background:transparent !important;
+    border:1px solid {T["pill_bd"]} !important;
+    border-radius:20px !important;
+    color:{T["text"]} !important;
+    font-size:13px !important;
+}}
 </style>""", unsafe_allow_html=True)
 
-# ── 9. SIDEBAR NAVIGATION ─────────────────────────────────────────────────────
+# ── 9. SIDEBAR ────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>",
+                unsafe_allow_html=True)
 
     st.markdown("<div class='theme-btn'>", unsafe_allow_html=True)
     if st.button("☀️ Light Mode" if IS_DARK else "🌙 Dark Mode", key="theme_toggle"):
@@ -191,7 +247,9 @@ with st.sidebar:
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.authenticated:
-        st.markdown(f"<p style='color:{T['text']};margin:12px 0 4px'>👤 <b>{st.session_state.first_name}</b></p>", unsafe_allow_html=True)
+        st.markdown(
+            f"<p style='color:{T['text']};margin:12px 0 4px'>👤 <b>{st.session_state.first_name}</b></p>",
+            unsafe_allow_html=True)
         st.markdown("---")
 
         st.markdown("<div class='new-chat-btn'>", unsafe_allow_html=True)
@@ -203,12 +261,15 @@ with st.sidebar:
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<p style='color:#888;font-size:11px;font-weight:700;margin:14px 0 6px;letter-spacing:.8px'>RECENT CHATS</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='color:#888;font-size:11px;font-weight:700;"
+            "margin:14px 0 6px;letter-spacing:.8px'>RECENT CHATS</p>",
+            unsafe_allow_html=True)
 
         recent = load_chat_history()
         if recent:
             for chat in recent:
-                msg = chat.get("message", {})
+                msg     = chat.get("message", {})
                 preview = msg.get("content", "Chat")[:30] + "…"
                 if st.button(f"💬 {preview}", key=f"h_{chat['id']}", use_container_width=True):
                     thread = load_full_conversation(chat["id"])
@@ -228,29 +289,36 @@ with st.sidebar:
 
 # ── 10. AUTH GATEWAY ──────────────────────────────────────────────────────────
 if not st.session_state.authenticated:
-    st.markdown("<div class='logo-wrap'><span class='logo-sym'>✦</span><h1 class='logo-txt'>FEEMO AI</h1></div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='logo-wrap'><span class='logo-sym'>✦</span>"
+        "<h1 class='logo-txt'>FEEMO AI</h1></div>",
+        unsafe_allow_html=True)
     t1, t2, t3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
 
     with t1:
         try:
             g = supabase.auth.sign_in_with_oauth({"provider": "google", "options": {
-                "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/", "skip_browser_redirect": True}})
+                "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
+                "skip_browser_redirect": True}})
             if g and g.url:
                 st.link_button("Continue with Google 🌐", g.url, use_container_width=True)
         except Exception as e:
             st.error(f"Google setup error: {e}")
-        st.markdown("<p style='text-align:center;color:#888;margin:10px 0'>OR</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center;color:#888;margin:10px 0'>OR</p>",
+                    unsafe_allow_html=True)
         with st.form("login_form"):
-            email = st.text_input("Email")
+            email    = st.text_input("Email")
             password = st.text_input("Password", type="password")
             if st.form_submit_button("LOGIN", use_container_width=True):
                 try:
-                    r = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                    r = supabase.auth.sign_in_with_password(
+                        {"email": email, "password": password})
                     if r.user:
                         st.session_state.authenticated = True
-                        st.session_state.user_id = r.user.id
+                        st.session_state.user_id       = r.user.id
                         meta = r.user.user_metadata or {}
-                        st.session_state.first_name = (meta.get("full_name") or email.split("@")[0])
+                        st.session_state.first_name    = (
+                            meta.get("full_name") or email.split("@")[0])
                         st.rerun()
                 except: st.error("Invalid email or password.")
 
@@ -261,7 +329,9 @@ if not st.session_state.authenticated:
             reg_pass  = st.text_input("Password", type="password")
             if st.form_submit_button("REGISTER", use_container_width=True):
                 try:
-                    supabase.auth.sign_up({"email": reg_email, "password": reg_pass, "options": {"data": {"full_name": full_name}}})
+                    supabase.auth.sign_up({
+                        "email": reg_email, "password": reg_pass,
+                        "options": {"data": {"full_name": full_name}}})
                     st.success("Check your email for the verification link.")
                 except: st.error("Signup failed. Try again.")
 
@@ -276,14 +346,31 @@ if not st.session_state.authenticated:
     st.stop()
 
 # ── 11. CHAT WORKSPACE ────────────────────────────────────────────────────────
-st.markdown("<div class='logo-wrap'><span class='logo-sym'>✦</span><h1 class='logo-txt'>FEEMO AI</h1></div>", unsafe_allow_html=True)
+st.markdown(
+    "<div class='logo-wrap'><span class='logo-sym'>✦</span>"
+    "<h1 class='logo-txt'>FEEMO AI</h1></div>",
+    unsafe_allow_html=True)
 
-# Render Chat History Nodes
+# Render chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Render Floating Context Selection Menu Overlay
+# ── 12. TRAY ─────────────────────────────────────────────────────────────────
+# The tray toggle sits above the input.
+# We use a small column trick so the button appears left-aligned near the input.
+tray_label = "✖" if st.session_state.show_tray else "＋"
+col_tray, col_spacer = st.columns([1, 11])
+with col_tray:
+    st.markdown("<div class='tray-col'>", unsafe_allow_html=True)
+    if st.button(tray_label, key="tray_toggle"):
+        st.session_state.show_tray = not st.session_state.show_tray
+        if not st.session_state.show_tray:
+            st.session_state.active_upload_type = None
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# Tray panel
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
@@ -305,7 +392,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# Render Explicit File Context Capture Drops
+# File uploader panel
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -317,7 +404,7 @@ if st.session_state.active_upload_type:
         with ch:
             atype = st.session_state.active_upload_type
             if atype == "pdf":
-                f = st.file_uploader("PDF Document", type="pdf")
+                f = st.file_uploader("PDF Document", type="pdf", key="fu_pdf")
                 if f:
                     try:
                         reader = PyPDF2.PdfReader(f)
@@ -326,178 +413,25 @@ if st.session_state.active_upload_type:
                         st.success(f"Context Staged: {f.name}")
                     except: st.error("Could not parse PDF.")
             elif atype == "photo":
-                f = st.file_uploader("Image", type=["png", "jpg", "jpeg"])
+                f = st.file_uploader("Image", type=["png","jpg","jpeg"], key="fu_photo")
                 if f:
                     st.image(f, width=200)
                     st.session_state.staged_context += f"\n[Image: {f.name}]"
                     st.success(f"Vision Asset Staged: {f.name}")
             elif atype == "code":
-                f = st.file_uploader("Code / Data file", type=["txt", "py", "csv", "json"])
+                f = st.file_uploader("Code / Data file",
+                                     type=["txt","py","csv","json"], key="fu_code")
                 if f:
                     try:
-                        st.session_state.staged_context += f"\n[File: {f.name}]:\n{f.read().decode('utf-8')[:3000]}"
+                        st.session_state.staged_context += (
+                            f"\n[File: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 12. CUSTOM CHAT INPUT (using st.chat_input as the real bridge) ────────────
-# We render the native st.chat_input (hidden via CSS) to receive values,
-# and overlay our styled pill on top purely for visual purposes.
-# The styled iframe pill uses postMessage to fill + submit the hidden input.
+# ── 13. CHAT INPUT ────────────────────────────────────────────────────────────
+prompt = st.chat_input("Ask Feemo AI anything...")
 
-tray_symbol = "✖" if st.session_state.show_tray else "＋"
-
-# The custom pill — purely visual. On submit it sends a postMessage to the
-# parent window which is caught by a small JS snippet injected below that
-# writes into and submits the real (hidden) Streamlit chat_input.
-html_pill_component = f"""
-<!DOCTYPE html>
-<html>
-<head>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
-<style>
-body {{ margin: 0; padding: 0; background: transparent; font-family: 'Inter', sans-serif; overflow: hidden; }}
-.chat-pill-outer {{
-  background: {T['pill_bg']};
-  border: 1px solid {T['pill_bd']};
-  border-radius: 32px;
-  padding: 4px 14px;
-  display: flex;
-  align-items: center;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-  box-sizing: border-box;
-  height: 48px;
-}}
-.tray-btn {{
-  color: {T['ph_col']};
-  font-size: 24px;
-  font-weight: 300;
-  margin-right: 12px;
-  cursor: pointer;
-  line-height: 1;
-  user-select: none;
-  background: none;
-  border: none;
-  padding: 0;
-}}
-.tray-btn:hover {{ color: #4285f4; }}
-#feemo_input_field {{
-  background: transparent;
-  border: none;
-  color: {T['inp_col']};
-  font-size: 15px;
-  width: 100%;
-  outline: none;
-  height: 36px;
-  font-family: 'Inter', sans-serif;
-}}
-#feemo_input_field::placeholder {{ color: {T['ph_col']}; opacity: 1; }}
-.send-btn {{
-  background: #4285f4;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  color: #ffffff;
-  font-size: 13px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 8px;
-  outline: none;
-  flex-shrink: 0;
-}}
-.send-btn:hover {{ background: #2a6dd9; }}
-</style>
-</head>
-<body>
-<div class="chat-pill-outer">
-  <button class="tray-btn" id="tray_toggle_btn">{tray_symbol}</button>
-  <input type="text" id="feemo_input_field" placeholder="Ask Feemo AI anything..." autocomplete="off" />
-  <button class="send-btn" id="send_btn">➤</button>
-</div>
-
-<script>
-  // Send prompt via postMessage to the Streamlit parent window
-  function sendPrompt() {{
-    var val = document.getElementById('feemo_input_field').value.trim();
-    if (!val) return;
-    window.parent.postMessage({{type: 'feemo_prompt', value: val}}, '*');
-    document.getElementById('feemo_input_field').value = '';
-  }}
-
-  // Send tray toggle signal via postMessage
-  function toggleTray() {{
-    window.parent.postMessage({{type: 'feemo_tray_toggle'}}, '*');
-  }}
-
-  document.getElementById('send_btn').addEventListener('click', sendPrompt);
-  document.getElementById('feemo_input_field').addEventListener('keydown', function(e) {{
-    if (e.key === 'Enter') sendPrompt();
-  }});
-  document.getElementById('tray_toggle_btn').addEventListener('click', toggleTray);
-</script>
-</body>
-</html>
-"""
-
-components.html(html_pill_component, height=60, scrolling=False)
-
-# Inject a small JS snippet into the main Streamlit page that:
-# 1. Listens for postMessage from the pill iframe
-# 2. Fills the hidden st.chat_input and triggers its submit event
-st.markdown("""
-<script>
-window.addEventListener('message', function(event) {
-  if (!event.data || !event.data.type) return;
-
-  if (event.data.type === 'feemo_prompt') {
-    // Find the hidden Streamlit chat input textarea and fill + submit it
-    var textarea = document.querySelector('textarea[data-testid="stChatInputTextArea"]');
-    if (textarea) {
-      // Use React's internal setter so Streamlit detects the change
-      var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLTextAreaElement.prototype, 'value').set;
-      nativeInputValueSetter.call(textarea, event.data.value);
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-
-      // Trigger Enter key to submit
-      setTimeout(function() {
-        textarea.dispatchEvent(new KeyboardEvent('keydown', {
-          key: 'Enter', code: 'Enter', keyCode: 13,
-          bubbles: true, cancelable: true
-        }));
-      }, 50);
-    }
-  }
-
-  if (event.data.type === 'feemo_tray_toggle') {
-    // Click the hidden tray toggle button that Streamlit renders
-    var trayBtn = document.querySelector('button[data-testid="feemo_tray_internal"]');
-    if (trayBtn) trayBtn.click();
-  }
-});
-</script>
-""", unsafe_allow_html=True)
-
-# Hidden native Streamlit chat_input — receives text from postMessage bridge above
-prompt = st.chat_input("Ask Feemo AI anything...", key="native_chat_input")
-
-# Hidden tray toggle button that JS can click (hidden via CSS, not label_visibility)
-st.markdown("""
-<style>
-div[data-testid="feemo_tray_internal_wrap"] { position:absolute; opacity:0; pointer-events:none; height:0; overflow:hidden; }
-</style>
-<div data-testid="feemo_tray_internal_wrap">
-""", unsafe_allow_html=True)
-if st.button("__tray__", key="feemo_tray_internal"):
-    st.session_state.show_tray = not st.session_state.show_tray
-    if not st.session_state.show_tray:
-        st.session_state.active_upload_type = None
-    st.rerun()
-st.markdown("</div>", unsafe_allow_html=True)
-
-# ── 13. PROCESS SUBMITTED PROMPT ─────────────────────────────────────────────
+# ── 14. PROCESS PROMPT ───────────────────────────────────────────────────────
 if prompt and prompt.strip():
     full_payload = prompt.strip()
     if st.session_state.staged_context:
@@ -506,31 +440,36 @@ if prompt and prompt.strip():
     st.session_state.messages.append({"role": "user", "content": prompt.strip()})
     save_chat_message("user", prompt.strip())
     st.session_state["active_payload"] = full_payload
-    st.session_state.show_tray = False
+    st.session_state.show_tray         = False
     st.session_state.active_upload_type = None
-    st.session_state.staged_context = ""
+    st.session_state.staged_context    = ""
     st.rerun()
 
-# ── 14. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
+# ── 15. AI RESPONSE ───────────────────────────────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
 
-    current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
+    current_prompt = st.session_state.get(
+        "active_payload", st.session_state.messages[-1]["content"])
 
-    api_messages = []
-    for m in st.session_state.messages[:-1]:
-        api_messages.append({"role": m["role"], "content": m["content"]})
+    api_messages = [{"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages[:-1]]
     api_messages.append({"role": "user", "content": current_prompt})
 
     try:
         res = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "Content-Type": "application/json"},
+            headers={
+                "Authorization": "Bearer " + st.secrets["GROQ_API_KEY"],
+                "Content-Type": "application/json"
+            },
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
-                    {"role": "system", "content": f"You are Feemo AI, a helpful assistant to {st.session_state.first_name}."}
+                    {"role": "system",
+                     "content": (f"You are Feemo AI, a helpful assistant "
+                                 f"to {st.session_state.first_name}.")}
                 ] + api_messages,
                 "max_tokens": 1000
             }
