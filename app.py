@@ -374,4 +374,61 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 # Parse Message and Payload Deliveries 
 if (send_triggered or (prompt and prompt != "")) and prompt:
-    # Gather any context
+    # Gather any context staged from the attachment dashboard
+    full_payload = prompt
+    if st.session_state.staged_context:
+        full_payload = f"{prompt}\n\n{st.session_state.staged_context}"
+    
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    save_chat_message("user", prompt)
+    
+    # Store payload into session history temporarily to pass context down to API node
+    st.session_state["active_payload"] = full_payload
+    
+    # Reset layout configuration state
+    st.session_state.show_tray = False
+    st.session_state.active_upload_type = None
+    st.session_state.staged_context = ""
+    st.rerun()
+
+# ── AI RESPONSE INFERENCE ─────────────────────────────────────────────────────
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    ph = st.empty()
+    ph.markdown(TYPING_HTML, unsafe_allow_html=True)
+    
+    # Extract the full payload with attachments if available
+    current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
+    
+    # Reconstruct transaction message matrix matching structural expectations
+    api_messages = []
+    for m in st.session_state.messages[:-1]:
+        api_messages.append({"role": m["role"], "content": m["content"]})
+    api_messages.append({"role": "user", "content": current_prompt})
+    
+    try:
+        res = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "Content-Type": "application/json"},
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": f"You are Feemo AI, a helpful assistant to {st.session_state.first_name}."}
+                ] + api_messages,
+                "max_tokens": 1000
+            }
+        ).json()
+        
+        if "choices" in res:
+            reply = res["choices"][0]["message"]["content"]
+            ph.empty()
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            save_chat_message("assistant", reply)
+            if "active_payload" in st.session_state:
+                del st.session_state["active_payload"]
+            st.rerun()
+        else:
+            ph.empty()
+            st.error("Inference structure failure.")
+    except Exception as ex:
+        ph.empty()
+        st.error(f"API execution failure: {ex}")
