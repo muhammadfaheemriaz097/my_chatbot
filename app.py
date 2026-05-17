@@ -185,14 +185,78 @@ st.markdown(f"""
         padding: 0 !important;
     }}
 
-    /* CAPSULE PANEL */
-    .gemini-capsule-panel {{
+    /* ── SINGLE-ROW INPUT PILL ── */
+    .input-pill-row {{
+        display: flex;
+        align-items: center;
         background-color: {THEME["capsule_bg"]};
         border: 1px solid {THEME["capsule_border"]};
-        border-radius: 28px !important;
-        padding: 16px 24px;
-        box-shadow: 0 12px 42px rgba(0, 0, 0, 0.5);
-        display: flex; flex-direction: column; gap: 12px; position: relative;
+        border-radius: 999px;
+        padding: 8px 14px 8px 10px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+        gap: 6px;
+    }}
+
+    /* hide streamlit column gaps inside the pill */
+    .input-pill-row div[data-testid="column"] {{
+        padding: 0 !important;
+    }}
+
+    /* text input inside pill */
+    .input-pill-row .stTextInput > div > div > input {{
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: {THEME["input_color"]} !important;
+        font-size: 16px !important;
+        padding: 6px 0 !important;
+    }}
+    .input-pill-row .stTextInput > div > div {{
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }}
+    .input-pill-row .stTextInput > label {{ display: none !important; }}
+
+    /* + circle button */
+    .pill-icon-btn button {{
+        background: transparent !important;
+        border: 1.5px solid {THEME["capsule_border"]} !important;
+        border-radius: 50% !important;
+        width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+        font-size: 20px !important;
+        color: {THEME["icon_color"]} !important;
+        line-height: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.2s !important;
+    }}
+    .pill-icon-btn button:hover {{
+        border-color: #4285f4 !important;
+        color: #4285f4 !important;
+    }}
+
+    /* ➤ send arrow button */
+    .pill-send-btn button {{
+        background: #4285f4 !important;
+        border: none !important;
+        border-radius: 50% !important;
+        width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+        font-size: 16px !important;
+        color: #ffffff !important;
+        line-height: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: background 0.2s !important;
+    }}
+    .pill-send-btn button:hover {{
+        background: #2a6dd9 !important;
     }}
 
     /* TEXT INPUT */
@@ -255,29 +319,7 @@ st.markdown(f"""
         margin: 4px 0;
     }}
 
-    /* BOTTOM ACTION ROW */
-    .bottom-action-row {{
-        display: flex; align-items: center; width: 100%;
-        border-top: 1px solid {THEME["divider"]};
-        padding-top: 10px;
-    }}
-
-    /* ICON BUTTONS */
-    div[data-testid="column"] button {{
-        background-color: transparent !important;
-        border: none !important;
-        color: {THEME["icon_color"]} !important;
-        font-size: 24px !important;
-        padding: 0 !important;
-        line-height: 1 !important;
-        width: auto !important;
-        text-align: left !important;
-    }}
-    div[data-testid="column"] button:hover {{
-        color: {THEME["icon_hover"]} !important;
-    }}
-
-    /* TRAY ITEMS (legacy fallback) */
+    /* kept for tray item hover */
     .tray-item-btn button {{
         text-align: left !important;
         justify-content: flex-start !important;
@@ -301,27 +343,6 @@ st.markdown(f"""
         padding: 4px 14px !important;
         cursor: pointer !important;
         width: auto !important;
-    }}
-
-    /* PLUS BUTTON CIRCLE */
-    .plus-circle-btn button {{
-        background-color: transparent !important;
-        border: 1.5px solid {THEME["capsule_border"]} !important;
-        border-radius: 50% !important;
-        width: 34px !important;
-        height: 34px !important;
-        padding: 0 !important;
-        font-size: 20px !important;
-        color: {THEME["icon_color"]} !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        line-height: 1 !important;
-        transition: border-color 0.2s, color 0.2s !important;
-    }}
-    .plus-circle-btn button:hover {{
-        border-color: {THEME["icon_hover"]} !important;
-        color: {THEME["icon_hover"]} !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -546,28 +567,36 @@ else:
                         except:
                             st.error("Failed to decode asset.")
 
-    # Input capsule
-    with st.form("gemini_layout_form", clear_on_submit=True):
-        st.markdown("<div class='gemini-capsule-panel'>", unsafe_allow_html=True)
-        st.markdown("<div class='top-input-row'>", unsafe_allow_html=True)
-        prompt = st.text_input("Ask Feemo...", placeholder="Ask Feemo", label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
+    # ── SINGLE-ROW INPUT PILL:  [+]  [text input]  [➤]  ──
+    with st.form("chat_input_form", clear_on_submit=True):
+        st.markdown("<div class='input-pill-row'>", unsafe_allow_html=True)
 
-        st.markdown("<div class='bottom-action-row'>", unsafe_allow_html=True)
-        col_plus, col_spacer = st.columns([1, 16])
+        col_plus, col_text, col_send = st.columns([1, 14, 1])
+
         with col_plus:
-            st.markdown("<div class='plus-circle-btn'>", unsafe_allow_html=True)
-            if st.form_submit_button("＋"):
-                st.session_state.show_tray = not st.session_state.show_tray
-                if not st.session_state.show_tray:
-                    st.session_state.active_upload_type = None
-                st.rerun()
+            st.markdown("<div class='pill-icon-btn'>", unsafe_allow_html=True)
+            tray_clicked = st.form_submit_button("＋", help="Attach file / photo / code")
             st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div></div>", unsafe_allow_html=True)
 
-        st.markdown("<div style='display:none;'>", unsafe_allow_html=True)
-        submit_chat = st.form_submit_button("SUBMIT")
+        with col_text:
+            prompt = st.text_input(
+                "msg", placeholder="Ask Feemo AI anything...",
+                label_visibility="collapsed"
+            )
+
+        with col_send:
+            st.markdown("<div class='pill-send-btn'>", unsafe_allow_html=True)
+            submit_chat = st.form_submit_button("➤")
+            st.markdown("</div>", unsafe_allow_html=True)
+
         st.markdown("</div>", unsafe_allow_html=True)
+
+    # Handle tray toggle (+ button)
+    if tray_clicked:
+        st.session_state.show_tray = not st.session_state.show_tray
+        if not st.session_state.show_tray:
+            st.session_state.active_upload_type = None
+        st.rerun()
 
     # Handle new user message
     if submit_chat and prompt:
