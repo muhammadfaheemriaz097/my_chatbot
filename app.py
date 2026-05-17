@@ -10,7 +10,7 @@ except Exception as e:
     st.error(f"Configuration Error: {e}")
     st.stop()
 
-# ── 2. PAGE CONFIG (FORCES SIDEBAR EXPANDED ON LAUNCH) ────────────────────────
+# ── 2. PAGE CONFIG ────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Feemo AI", 
     page_icon="✦", 
@@ -134,7 +134,7 @@ div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .stApp{{background:{T["bg"]};color:{T["text"]};font-family:'Inter',sans-serif}}
 .block-container{{max-width:860px;padding-top:2.5rem!important;margin:auto}}
 
-/* ── SIDEBAR STYLE RESTORATION ── */
+/* Sidebar Protection */
 section[data-testid="stSidebar"] {{
     background-color: {T["sb_bg"]} !important;
     border-right: 1px solid {T["sb_bdr"]} !important;
@@ -378,8 +378,6 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-attached_context = ""
-
 # Render Floating Context Selection Menu Overlay
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
@@ -404,4 +402,117 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
 
 # Render Explicit File Context Capture Drops
 if st.session_state.active_upload_type:
-    with st.container(
+    with st.container(border=True):
+        ch, cc2 = st.columns([12, 1])
+        with cc2:
+            if st.button("✖", key="close_uploader"):
+                st.session_state.active_upload_type = None
+                st.session_state.show_tray = False
+                st.rerun()
+        with ch:
+            atype = st.session_state.active_upload_type
+            if atype == "pdf":
+                f = st.file_uploader("PDF Document", type="pdf")
+                if f:
+                    try:
+                        reader = PyPDF2.PdfReader(f)
+                        txt = "".join(p.extract_text() or "" for p in reader.pages[:10])
+                        st.session_state.staged_context += f"\n[PDF: {f.name}]:\n{txt[:5000]}"
+                        st.success(f"Context Staged: {f.name}")
+                    except: st.error("Could not parse PDF.")
+            elif atype == "photo":
+                f = st.file_uploader("Image", type=["png", "jpg", "jpeg"])
+                if f:
+                    st.image(f, width=200)
+                    st.session_state.staged_context += f"\n[Image: {f.name}]"
+                    st.success(f"Vision Asset Staged: {f.name}")
+            elif atype == "code":
+                f = st.file_uploader("Code / Data file", type=["txt", "py", "csv", "json"])
+                if f:
+                    try:
+                        st.session_state.staged_context += f"\n[File: {f.name}]:\n{f.read().decode('utf-8')[:3000]}"
+                        st.success(f"Source Code Staged: {f.name}")
+                    except: st.error("Could not decode file.")
+
+# ── 12. FIXED SECURE INLINE CAPSULE DECK BLOCK ────────────────────────────────
+st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
+with st.form("stable_chat_pill_form", clear_on_submit=True):
+    c_plus, c_text, c_send = st.columns([0.4, 13.6, 0.4])
+    
+    with c_plus:
+        st.markdown("<div class='plus-col-style'>", unsafe_allow_html=True)
+        tray_label = "✖" if st.session_state.show_tray else "＋"
+        plus_clicked = st.form_submit_button(tray_label)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with c_text:
+        st.markdown("<div class='text-col-style'>", unsafe_allow_html=True)
+        prompt = st.text_input("msg", placeholder="Ask Feemo AI anything...", label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with c_send:
+        st.markdown("<div class='send-col-style'>", unsafe_allow_html=True)
+        send_clicked = st.form_submit_button("➤")
+        st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+# ── 13. INTERACTION EVALUATORS ────────────────────────────────────────────────
+if plus_clicked:
+    st.session_state.show_tray = not st.session_state.show_tray
+    if not st.session_state.show_tray:
+        st.session_state.active_upload_type = None
+    st.rerun()
+
+if send_clicked and prompt:
+    full_payload = prompt
+    if st.session_state.staged_context:
+        full_payload = f"{prompt}\n\n{st.session_state.staged_context}"
+        
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    save_chat_message("user", prompt)
+    
+    st.session_state["active_payload"] = full_payload
+    st.session_state.show_tray = False
+    st.session_state.active_upload_type = None
+    st.session_state.staged_context = ""
+    st.rerun()
+
+# ── 14. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    ph = st.empty()
+    ph.markdown(TYPING_HTML, unsafe_allow_html=True)
+    
+    current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
+    
+    api_messages = []
+    for m in st.session_state.messages[:-1]:
+        api_messages.append({"role": m["role"], "content": m["content"]})
+    api_messages.append({"role": "user", "content": current_prompt})
+    
+    try:
+        res = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "Content-Type": "application/json"},
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": f"You are Feemo AI, a helpful assistant to {st.session_state.first_name}."}
+                ] + api_messages,
+                "max_tokens": 1000
+            }
+        ).json()
+        
+        if "choices" in res:
+            reply = res["choices"][0]["message"]["content"]
+            ph.empty()
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            save_chat_message("assistant", reply)
+            if "active_payload" in st.session_state:
+                del st.session_state["active_payload"]
+            st.rerun()
+        else:
+            ph.empty()
+            st.error("Inference structure failure.")
+    except Exception as ex:
+        ph.empty()
+        st.error(f"API execution failure: {ex}")
