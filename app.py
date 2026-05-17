@@ -117,19 +117,24 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS (UPDATED WITH STREAMLIT HEADER HIDER) ───────────────────────
+# ── 8. GLOBAL CSS ─────────────────────────────────────────────────────────────
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── HIDE STREAMLIT CHROME AND GITHUB TOOLBAR ── */
-header[data-testid="stHeader"],
+/* ── TARGETED GITHUB HIDER (LEAVES SIDEBAR WORKING) ── */
+.stAppDeployDropdown,
+div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
 .manage-app-button,
 #MainMenu,
 footer {{ 
+    display: none !important;
     visibility: hidden !important; 
-    height: 0px !important;
-    padding: 0 !important;
+}}
+
+/* Clean header styling that won't overwrite the sidebar alignment maps */
+header[data-testid="stHeader"] {{
+    background: transparent !important;
 }}
 
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
@@ -144,7 +149,7 @@ footer {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar */
+/* Sidebar Container UI Elements */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
