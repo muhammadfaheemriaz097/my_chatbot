@@ -121,7 +121,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── TARGETED HEADER HIDER (KEEPS TOGGLE BUTTON ALIVE) ── */
+/* ── TARGETED TOOLBAR HIDER ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -132,7 +132,6 @@ footer {{
     visibility: hidden !important; 
 }}
 
-/* Header padding settings to allow toggle interactions */
 header[data-testid="stHeader"] {{
     background: transparent !important;
 }}
@@ -160,83 +159,132 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* ── PILL CHAT INPUT ── */
-div[data-testid="stBottom"] > div {{
-    background: transparent !important;
-    padding: 8px 0 16px 0 !important;
-}}
-div[data-testid="stChatInput"] {{
-    background: {T["pill_bg"]} !important;
-    border: 1px solid {T["pill_bd"]} !important;
-    border-radius: 32px !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
-    padding: 2px 8px !important;
-    max-width: 860px !important;
-    margin: 0 auto !important;
-}}
-div[data-testid="stChatInput"] textarea {{
-    background: transparent !important;
-    color: {T["inp_col"]} !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 15px !important;
+/* Remove form container layout spacing lines */
+div[data-testid="stForm"] {{
     border: none !important;
-    outline: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
     box-shadow: none !important;
 }}
-div[data-testid="stChatInput"] textarea::placeholder {{
-    color: {T["ph_col"]} !important;
-    opacity: 1 !important;
-}}
-div[data-testid="stChatInput"] button {{
-    background: #4285f4 !important;
-    border-radius: 50% !important;
-    color: #fff !important;
-    border: none !important;
-}}
-div[data-testid="stChatInput"] button:hover {{
-    background: #2a6dd9 !important;
+
+/* THE TRUE SINGLE-ROW PILL CAPSULE WRAPPER */
+.chat-pill-outer {{
+  display: flex;
+  align-items: center;
+  background: {T["pill_bg"]};
+  border: 1px solid {T["pill_bd"]};
+  border-radius: 32px;
+  padding: 4px 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  width: 100%;
+  margin-top: 20px;
 }}
 
-/* Tray toggle button */
-div[data-testid="stHorizontalBlock"] .tray-col button {{
-    background: {T["pill_bg"]} !important;
-    border: 1px solid {T["pill_bd"]} !important;
-    border-radius: 50% !important;
-    color: {T["ph_col"]} !important;
-    font-size: 20px !important;
-    height: 42px !important;
-    width: 42px !important;
+div[data-testid="stHorizontalBlock"] {{
+    gap: 0px !important;
+    align-items: center !important;
+    width: 100% !important;
+}}
+div[data-testid="column"] {{
     padding: 0 !important;
-}}
-div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
-    color: #4285f4 !important;
-    border-color: #4285f4 !important;
+    margin: 0 !important;
+    min-width: 0 !important;
 }}
 
-/* Tray panel */
+/* Left Plus Icon styling */
+.plus-col-style button {{
+    background: transparent !important;
+    border: none !important;
+    color: {T["ph_col"]} !important;
+    font-size: 24px !important;
+    font-weight: 300 !important;
+    padding: 0 !important;
+    margin-right: 8px !important;
+    line-height: 1 !important;
+    width: auto !important;
+    box-shadow: none !important;
+}}
+.plus-col-style button:hover {{ color: #4285f4 !important; }}
+
+/* Borderless input area styling */
+.text-col-style .stTextInput>div>div>input {{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: {T["inp_col"]} !important;
+  font-size: 16px !important;
+  padding: 4px 0 !important;
+  width: 100% !important;
+}}
+.text-col-style .stTextInput>div>div {{
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}}
+.text-col-style .stTextInput>label {{ display: none !important; }}
+
+/* Right hand side action arrow button styling */
+.send-col-style button {{
+  background: #4285f4 !important;
+  border: none !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}}
+.send-col-style button:hover {{ background: #2a6dd9 !important; }}
+
+/* Option menu overlay configuration sets */
 .gemini-tray {{
-    background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
-    padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
+  background: {T["pop_bg"]};
+  border: 1px solid {T["pop_bd"]};
+  border-radius: 20px;
+  padding: 8px 0;
+  width: 240px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+  margin-bottom: 12px;
 }}
 .gemini-tray-item {{
-    display:flex; align-items:center; gap:12px; padding:10px 18px;
-    color:{T["text"]}; font-size:14px; font-weight:500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  color: {T["text"]};
+  font-size: 14.5px;
+  font-weight: 500;
 }}
-.gemini-tray-divider {{ height:1px; background:{T["pop_bd"]}; margin:4px 0; }}
+.gemini-tray-divider {{ height: 1px; background: {T["pop_bd"]}; margin: 6px 0; }}
+.tray-item-btn button {{
+  text-align: left !important;
+  justify-content: flex-start !important;
+  font-size: 15px !important;
+  color: {T["text"]} !important;
+  padding: 10px 16px !important;
+  border-radius: 12px !important;
+  width: 100% !important;
+}}
+.tray-item-btn button:hover {{ background: {T["hov"]} !important; }}
 
-/* Sidebar buttons */
 .new-chat-btn button {{
-    background:linear-gradient(135deg,#4285f4,#9b72cb) !important;
-    border:none !important; border-radius:12px !important;
-    color:#fff !important; font-weight:600 !important; font-size:14px !important;
+  background: linear-gradient(135deg,#4285f4,#9b72cb)!important;
+  border: none !important;
+  border-radius: 12px !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 10px 0 !important;
+  width: 100% !important;
 }}
-.theme-btn button {{
-    background:transparent !important;
-    border:1px solid {T["pill_bd"]} !important;
-    border-radius:20px !important;
-    color:{T["text"]} !important;
-    font-size:13px !important;
-}}
+.new-chat-btn button:hover {{ opacity: .9 !important; }}
+.theme-btn button {{ background: transparent !important; border: 1px solid {T["pill_bd"]} !important; border-radius: 20px !important; color: {T["text"]} !important; font-size: 13px !important; padding: 4px 14px !important; width: auto !important; }}
 </style>""", unsafe_allow_html=True)
 
 # ── 9. SIDEBAR ────────────────────────────────────────────────────────────────
@@ -360,19 +408,11 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# ── 12. TRAY ─────────────────────────────────────────────────────────────────
-tray_label = "✖" if st.session_state.show_tray else "＋"
-col_tray, col_spacer = st.columns([1, 11])
-with col_tray:
-    st.markdown("<div class='tray-col'>", unsafe_allow_html=True)
-    if st.button(tray_label, key="tray_toggle"):
-        st.session_state.show_tray = not st.session_state.show_tray
-        if not st.session_state.show_tray:
-            st.session_state.active_upload_type = None
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("---")
 
-# Tray panel
+attached_context = ""
+
+# Render Floating Context Selection Menu Overlay
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
@@ -430,53 +470,74 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 13. CHAT INPUT ────────────────────────────────────────────────────────────
-prompt = st.chat_input("Ask Feemo AI anything...")
+# ── 12. HIGH-STABILITY INLINE CHAT PILL BAR ───────────────────────────────────
+st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
+with st.form("stable_chat_pill_form", clear_on_submit=True):
+    c_plus, c_text, c_send = st.columns([0.4, 13.2, 0.4])
+    
+    with c_plus:
+        st.markdown("<div class='plus-col-style'>", unsafe_allow_html=True)
+        tray_label = "✖" if st.session_state.show_tray else "＋"
+        plus_clicked = st.form_submit_button(tray_label)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with c_text:
+        st.markdown("<div class='text-col-style'>", unsafe_allow_html=True)
+        prompt = st.text_input("msg", placeholder="Ask Feemo AI anything...", label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with c_send:
+        st.markdown("<div class='send-col-style'>", unsafe_allow_html=True)
+        send_clicked = st.form_submit_button("➤")
+        st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-# ── 14. PROCESS PROMPT ───────────────────────────────────────────────────────
-if prompt and prompt.strip():
-    full_payload = prompt.strip()
-    if st.session_state.staged_context:
-        full_payload = f"{full_payload}\n\n{st.session_state.staged_context}"
-
-    st.session_state.messages.append({"role": "user", "content": prompt.strip()})
-    save_chat_message("user", prompt.strip())
-    st.session_state["active_payload"] = full_payload
-    st.session_state.show_tray           = False
-    st.session_state.active_upload_type = None
-    st.session_state.staged_context    = ""
+# ── 13. INTERACTION EVALUATORS ────────────────────────────────────────────────
+if plus_clicked:
+    st.session_state.show_tray = not st.session_state.show_tray
+    if not st.session_state.show_tray:
+        st.session_state.active_upload_type = None
     st.rerun()
 
-# ── 15. AI RESPONSE ───────────────────────────────────────────────────────────
+if send_clicked and prompt:
+    full_payload = prompt
+    if st.session_state.staged_context:
+        full_payload = f"{prompt}\n\n{st.session_state.staged_context}"
+        
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    save_chat_message("user", prompt)
+    
+    st.session_state["active_payload"] = full_payload
+    st.session_state.show_tray = False
+    st.session_state.active_upload_type = None
+    st.session_state.staged_context = ""
+    st.rerun()
+
+# ── 14. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
-
-    current_prompt = st.session_state.get(
-        "active_payload", st.session_state.messages[-1]["content"])
-
-    api_messages = [{"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[:-1]]
+    
+    current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
+    
+    api_messages = []
+    for m in st.session_state.messages[:-1]:
+        api_messages.append({"role": m["role"], "content": m["content"]})
     api_messages.append({"role": "user", "content": current_prompt})
-
+    
     try:
         res = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": "Bearer " + st.secrets["GROQ_API_KEY"],
-                "Content-Type": "application/json"
-            },
+            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "Content-Type": "application/json"},
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
-                    {"role": "system",
-                     "content": (f"You are Feemo AI, a helpful assistant "
-                                 f"to {st.session_state.first_name}.")}
+                    {"role": "system", "content": f"You are Feemo AI, a helpful assistant to {st.session_state.first_name}."}
                 ] + api_messages,
                 "max_tokens": 1000
             }
         ).json()
-
+        
         if "choices" in res:
             reply = res["choices"][0]["message"]["content"]
             ph.empty()
