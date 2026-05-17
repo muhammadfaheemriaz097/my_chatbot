@@ -121,7 +121,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── TARGETED GITHUB HIDER (LEAVES SIDEBAR WORKING) ── */
+/* ── TARGETED HEADER HIDER (KEEPS TOGGLE BUTTON ALIVE) ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -132,7 +132,7 @@ footer {{
     visibility: hidden !important; 
 }}
 
-/* Clean header styling that won't overwrite the sidebar alignment maps */
+/* Ensure the background is transparent but doesn't overwrite structural layouts */
 header[data-testid="stHeader"] {{
     background: transparent !important;
 }}
