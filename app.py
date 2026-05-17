@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import PyPDF2
 from supabase import create_client
+import streamlit.components.v1 as components
 
 # ── 1. DATABASE INIT ──────────────────────────────────────────────────────────
 try:
@@ -11,12 +12,8 @@ except Exception as e:
     st.stop()
 
 # ── 2. PAGE CONFIG ────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Feemo AI", 
-    page_icon="✦", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
+                   initial_sidebar_state="expanded")
 
 # ── 3. SESSION STATE ──────────────────────────────────────────────────────────
 for k, v in {
@@ -121,12 +118,11 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS OVERRIDES (STABLE THEME MAPPER) ─────────────────────────────
-st.markdown(f"""
-<style>
+# ── 8. GLOBAL CSS OVERRIDES ───────────────────────────────────────────────────
+st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Clean up header elements safely */
+/* Completely Hide Streamlit Frame Top Bar elements */
 header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
 div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .manage-app-button {{ display: none !important; }}
@@ -135,14 +131,6 @@ div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .stApp{{background:{T["bg"]};color:{T["text"]};font-family:'Inter',sans-serif}}
 .block-container{{max-width:860px;padding-top:2.5rem!important;margin:auto}}
 
-/* Sidebar Protection Visibility Map */
-section[data-testid="stSidebar"] {{
-    background-color: {T["sb_bg"]} !important;
-    border-right: 1px solid {T["sb_bdr"]} !important;
-    display: flex !important;
-    visibility: visible !important;
-}}
-
 /* Brand Logo Layout */
 .logo-wrap{{display:flex;justify-content:center;align-items:center;margin-bottom:36px}}
 .logo-txt{{font-size:52px;font-weight:800;letter-spacing:-2px;margin:0;
@@ -150,134 +138,33 @@ section[data-testid="stSidebar"] {{
   -webkit-background-clip:text;-webkit-text-fill-color:transparent}}
 .logo-sym{{font-size:42px;margin-right:14px;color:#4285f4}}
 
+/* Navigation Sidebar */
+section[data-testid="stSidebar"]{{background:{T["sb_bg"]}!important;border-right:1px solid {T["sb_bdr"]}!important}}
 .stChatMessage p{{color:{T["msg_t"]}!important;font-size:15px!important;line-height:1.8!important}}
 
-/* Remove form component container spacing limits */
-div[data-testid="stForm"] {{
-    border: none !important;
-    background-color: transparent !important;
-    padding: 0 !important;
-    box-shadow: none !important;
+/* Gemini Menu Panel */
+.gemini-tray{{
+  background:{T["pop_bg"]};border:1px solid {T["pop_bd"]};border-radius:20px;
+  padding:8px 0;width:240px;box-shadow:0 12px 36px rgba(0,0,0,.5);margin-bottom:8px;
 }}
+.gemini-tray-item{{
+  display:flex;align-items:center;gap:12px;padding:10px 18px;color:{T["text"]};font-size:14.5px;font-weight:500;
+  border:none;background:transparent;width:100%;text-align:left;
+}}
+.gemini-tray-divider{{height:1px;background:{T["pop_bd"]};margin:6px 0}}
+.tray-item-btn button{{
+  text-align:left!important;justify-content:flex-start!important;font-size:15px!important;color:{T["text"]}!important;
+  padding:10px 16px!important;border-radius:12px!important;width:100%!important;
+}}
+.tray-item-btn button:hover{{background:{T["hov"]}!important}}
 
-/* REPLICATED SINGLE-ROW PILL CAPSULE WRAPPER */
-.chat-pill-outer {{
-  display: flex;
-  align-items: center;
-  background: {T["pill_bg"]};
-  border: 1px solid {T["pill_bd"]};
-  border-radius: 32px;
-  padding: 6px 18px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-  width: 100%;
+.new-chat-btn button{{
+  background:linear-gradient(135deg,#4285f4,#9b72cb)!important;border:none!important;border-radius:12px!important;
+  color:#fff!important;font-weight:600!important;font-size:14px!important;padding:10px 0!important;width:100% !important;
 }}
-
-/* Force structural inline alignment columns */
-div[data-testid="stHorizontalBlock"] {{
-    gap: 0px !important;
-    align-items: center !important;
-    width: 100% !important;
-}}
-div[data-testid="column"] {{
-    padding: 0 !important;
-    margin: 0 !important;
-    min-width: 0 !important;
-}}
-
-/* Left Plus Icon button override definitions */
-.plus-col-style button {{
-    background: transparent !important;
-    border: none !important;
-    color: {T["ph_col"]} !important;
-    font-size: 26px !important;
-    font-weight: 300 !important;
-    padding: 0 !important;
-    margin-right: 12px !important;
-    line-height: 1 !important;
-    width: auto !important;
-}}
-.plus-col-style button:hover {{ color: #4285f4 !important; }}
-
-/* Text entry borderless input style modifications */
-.text-col-style .stTextInput>div>div>input {{
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  color: {T["inp_col"]} !important;
-  font-size: 16px !important;
-  padding: 4px 0 !important;
-  width: 100% !important;
-}}
-.text-col-style .stTextInput>div>div {{
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}}
-.text-col-style .stTextInput>label {{ display: none !important; }}
-
-/* Right hand side execution submit button style updates */
-.send-col-style button {{
-  background: #4285f4 !important;
-  border: none !important;
-  border-radius: 50% !important;
-  width: 32px !important;
-  height: 32px !important;
-  color: #ffffff !important;
-  font-size: 13px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  cursor: pointer !important;
-}}
-.send-col-style button:hover {{ background: #2a6dd9 !important; }}
-
-/* Custom Menu Options Popup Card Layout Sheet */
-.gemini-tray {{
-  background: {T["pop_bg"]};
-  border: 1px solid {T["pop_bd"]};
-  border-radius: 20px;
-  padding: 8px 0;
-  width: 240px;
-  box-shadow: 0 12px 36px rgba(0,0,0,0.5);
-  margin-bottom: 12px;
-}}
-.gemini-tray-item {{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
-  color: {T["text"]};
-  font-size: 14.5px;
-  font-weight: 500;
-}}
-.gemini-tray-divider {{ height: 1px; background: {T["pop_bd"]}; margin: 6px 0; }}
-.tray-item-btn button {{
-  text-align: left !important;
-  justify-content: flex-start !important;
-  font-size: 15px !important;
-  color: {T["text"]} !important;
-  padding: 10px 16px !important;
-  border-radius: 12px !important;
-  width: 100% !important;
-}}
-.tray-item-btn button:hover {{ background: {T["hov"]} !important; }}
-
-.new-chat-btn button {{
-  background: linear-gradient(135deg,#4285f4,#9b72cb)!important;
-  border: none !important;
-  border-radius: 12px !important;
-  color: #fff !important;
-  font-weight: 600 !important;
-  font-size: 14px !important;
-  padding: 10px 0 !important;
-  width: 100% !important;
-}}
-.new-chat-btn button:hover {{ opacity: .9 !important; }}
-.theme-btn button {{ background: transparent !important; border: 1px solid {T["pill_bd"]} !important; border-radius: 20px !important; color: {T["text"]} !important; font-size: 13px !important; padding: 4px 14px !important; width: auto !important; }}
-</style>
-""", unsafe_allow_html=True)
+.new-chat-btn button:hover{{opacity:.9!important}}
+.theme-btn button{{background:transparent!important;border:1px solid {T["pill_bd"]}!important;border-radius:20px!important;color:{T["text"]}!important;font-size:13px!important;padding:4px 14px!important;width:auto!important}}
+</style>""", unsafe_allow_html=True)
 
 # ── 9. SIDEBAR NAVIGATION ─────────────────────────────────────────────────────
 with st.sidebar:
@@ -382,8 +269,6 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-attached_context = ""
-
 # Render Floating Context Selection Menu Overlay
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
@@ -440,40 +325,111 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 12. FLOATING SINGLE-ROW CAPSULE PILL INTERFACE BAR ────────────────────────
-st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
-with st.form("stable_chat_pill_form", clear_on_submit=True):
-    c_plus, c_text, c_send = st.columns([0.4, 13.6, 0.4])
-    
-    with c_plus:
-        st.markdown("<div class='plus-col-style'>", unsafe_allow_html=True)
-        tray_label = "✖" if st.session_state.show_tray else "＋"
-        plus_clicked = st.form_submit_button(tray_label)
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-    with c_text:
-        st.markdown("<div class='text-col-style'>", unsafe_allow_html=True)
-        prompt = st.text_input("msg", placeholder="Ask Feemo AI anything...", label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-    with c_send:
-        st.markdown("<div class='send-col-style'>", unsafe_allow_html=True)
-        send_clicked = st.form_submit_button("➤")
-        st.markdown("</div>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+# ── 12. FIXED INTER-FRAME IFRAME INJECTION ───────────────────────────────────
+# Added window.parent.location updates to communicate parameters directly to Streamlit without losing the sidebar!
+tray_symbol = "✖" if st.session_state.show_tray else "＋"
 
-# ── 13. INTERACTION EVALUATORS ────────────────────────────────────────────────
-if plus_clicked:
+html_pill_component = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body {{ margin: 0; padding: 0; background: transparent; font-family: 'Inter', sans-serif; overflow: hidden; }}
+.chat-pill-outer {{
+  background: {T['pill_bg']}; 
+  border: 1px solid {T['pill_bd']}; 
+  border-radius: 32px; 
+  padding: 4px 14px; 
+  display: flex; 
+  align-items: center; 
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  box-sizing: border-box;
+  height: 48px;
+}}
+.tray-link-btn {{
+  text-decoration: none; 
+  color: {T['ph_col']}; 
+  font-size: 24px; 
+  font-weight: 300; 
+  margin-right: 12px; 
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+}}
+.tray-link-btn:hover {{ color: #4285f4; }}
+form {{ display: flex; width: 100%; align-items: center; margin: 0; padding: 0; }}
+input {{
+  background: transparent; 
+  border: none; 
+  color: {T['inp_col']}; 
+  font-size: 15px; 
+  width: 100%; 
+  outline: none; 
+  height: 36px;
+}}
+input::placeholder {{ color: {T['ph_col']}; opacity: 1; }}
+button {{
+  background: #4285f4; 
+  border: none; 
+  border-radius: 50%; 
+  width: 32px; 
+  height: 32px; 
+  color: #ffffff; 
+  font-size: 13px; 
+  cursor: pointer; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  margin-left: 8px; 
+  outline: none;
+  flex-shrink: 0;
+}}
+button:hover {{ background: #2a6dd9; }}
+</style>
+<script>
+function triggerTrayToggle() {{
+    window.parent.location.href = window.parent.location.pathname + "?toggle_tray=true";
+}}
+function handleFormSubmission(event) {{
+    event.preventDefault();
+    var promptVal = document.getElementById('feemo_input_field').value;
+    window.parent.location.href = window.parent.location.pathname + "?feemo_prompt=" + encodeURIComponent(promptVal);
+}}
+</script>
+</head>
+<body>
+<div class="chat-pill-outer">
+    <div class="tray-link-btn" onclick="triggerTrayToggle()">{tray_symbol}</div>
+    <form onsubmit="handleFormSubmission(event)">
+        <input type="text" id="feemo_input_field" placeholder="Ask Feemo AI anything..." autocomplete="off" required />
+        <button type="submit">➤</button>
+    </form>
+</div>
+</body>
+</html>
+"""
+
+components.html(html_pill_component, height=60, scrolling=False)
+
+# ── 13. DATA INTERACTION LAYER PROCESSING ─────────────────────────────────────
+q_params = st.query_params
+
+# Safely catch tray toggles over parent window states
+if "toggle_tray" in q_params:
     st.session_state.show_tray = not st.session_state.show_tray
     if not st.session_state.show_tray:
         st.session_state.active_upload_type = None
+    st.query_params.clear()
     st.rerun()
 
-if send_clicked and prompt:
+# Safely catch input prompt submissions over parent window states
+prompt = q_params.get("feemo_prompt")
+if prompt and prompt != "":
     full_payload = prompt
     if st.session_state.staged_context:
         full_payload = f"{prompt}\n\n{st.session_state.staged_context}"
-        
+    
     st.session_state.messages.append({"role": "user", "content": prompt})
     save_chat_message("user", prompt)
     
@@ -481,6 +437,7 @@ if send_clicked and prompt:
     st.session_state.show_tray = False
     st.session_state.active_upload_type = None
     st.session_state.staged_context = ""
+    st.query_params.clear()
     st.rerun()
 
 # ── 14. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
