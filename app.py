@@ -121,7 +121,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── TARGETED DROPDOWN AND DEV TOOLBAR HIDER ── */
+/* ── TARGETED HEADER HIDER (KEEPS TOGGLE BUTTON ALIVE) ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -304,7 +304,7 @@ if not st.session_state.authenticated:
             g = supabase.auth.sign_in_with_oauth({"provider": "google", "options": {
                 "redirect_to": "https://chatbot-2k1njohomp7.streamlit.app/",
                 "skip_browser_redirect": True}})
-            if g Image and g.url:
+            if g and g.url:
                 st.link_button("Continue with Google 🌐", g.url, use_container_width=True)
         except Exception as e:
             st.error(f"Google setup error: {e}")
