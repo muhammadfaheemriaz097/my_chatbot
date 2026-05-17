@@ -19,7 +19,7 @@ st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
 for k, v in {
     "authenticated": False, "messages": [], "first_name": "Engineer",
     "user_id": None, "show_tray": False, "active_upload_type": None,
-    "theme": "dark", "staged_context": ""
+    "theme": "dark", "staged_context": "", "pending_prompt": ""
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -119,15 +119,26 @@ TYPING_HTML = """
 """
 
 # ── 8. GLOBAL CSS OVERRIDES ───────────────────────────────────────────────────
+# NOTE: Only hide the deploy/menu bar items, NOT the entire header,
+# so the sidebar toggle chevron remains visible.
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Completely Hide Streamlit Frame Top Bar elements */
-header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
+/* Hide only the Streamlit top-bar action buttons, keep sidebar toggle */
 div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .manage-app-button {{ display: none !important; }}
+button[kind="header"] {{ display: none !important; }}
+#MainMenu {{ visibility: hidden !important; }}
+footer {{ visibility: hidden !important; }}
 
-#MainMenu,footer{{visibility:hidden!important}}
+/* Keep the header bar itself visible so the sidebar toggle works,
+   but make it transparent / zero-height so it doesn't take space */
+header[data-testid="stHeader"] {{
+    background: transparent !important;
+    height: 0px !important;
+    min-height: 0px !important;
+}}
+
 .stApp{{background:{T["bg"]};color:{T["text"]};font-family:'Inter',sans-serif}}
 .block-container{{max-width:860px;padding-top:2.5rem!important;margin:auto}}
 
@@ -164,6 +175,9 @@ section[data-testid="stSidebar"]{{background:{T["sb_bg"]}!important;border-right
 }}
 .new-chat-btn button:hover{{opacity:.9!important}}
 .theme-btn button{{background:transparent!important;border:1px solid {T["pill_bd"]}!important;border-radius:20px!important;color:{T["text"]}!important;font-size:13px!important;padding:4px 14px!important;width:auto!important}}
+
+/* Hide the default Streamlit chat_input so only our custom pill shows */
+div[data-testid="stChatInput"] {{ display: none !important; }}
 </style>""", unsafe_allow_html=True)
 
 # ── 9. SIDEBAR NAVIGATION ─────────────────────────────────────────────────────
@@ -279,7 +293,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
       <div class="gemini-tray-divider"></div>
       <div class="gemini-tray-item">📁 &nbsp; Import code</div>
     </div>""", unsafe_allow_html=True)
-    
+
     ca, cb, cc = st.columns([1, 1, 1])
     with ca:
         if st.button("📎 Upload file", key="opt_pdf", use_container_width=True):
@@ -325,10 +339,16 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 12. FIXED INTER-FRAME IFRAME INJECTION ───────────────────────────────────
-# Added window.parent.location updates to communicate parameters directly to Streamlit without losing the sidebar!
+# ── 12. CUSTOM CHAT INPUT (using st.chat_input as the real bridge) ────────────
+# We render the native st.chat_input (hidden via CSS) to receive values,
+# and overlay our styled pill on top purely for visual purposes.
+# The styled iframe pill uses postMessage to fill + submit the hidden input.
+
 tray_symbol = "✖" if st.session_state.show_tray else "＋"
 
+# The custom pill — purely visual. On submit it sends a postMessage to the
+# parent window which is caught by a small JS snippet injected below that
+# writes into and submits the real (hidden) Streamlit chat_input.
 html_pill_component = f"""
 <!DOCTYPE html>
 <html>
@@ -337,121 +357,168 @@ html_pill_component = f"""
 <style>
 body {{ margin: 0; padding: 0; background: transparent; font-family: 'Inter', sans-serif; overflow: hidden; }}
 .chat-pill-outer {{
-  background: {T['pill_bg']}; 
-  border: 1px solid {T['pill_bd']}; 
-  border-radius: 32px; 
-  padding: 4px 14px; 
-  display: flex; 
-  align-items: center; 
+  background: {T['pill_bg']};
+  border: 1px solid {T['pill_bd']};
+  border-radius: 32px;
+  padding: 4px 14px;
+  display: flex;
+  align-items: center;
   box-shadow: 0 8px 32px rgba(0,0,0,0.35);
   box-sizing: border-box;
   height: 48px;
 }}
-.tray-link-btn {{
-  text-decoration: none; 
-  color: {T['ph_col']}; 
-  font-size: 24px; 
-  font-weight: 300; 
-  margin-right: 12px; 
+.tray-btn {{
+  color: {T['ph_col']};
+  font-size: 24px;
+  font-weight: 300;
+  margin-right: 12px;
   cursor: pointer;
   line-height: 1;
   user-select: none;
+  background: none;
+  border: none;
+  padding: 0;
 }}
-.tray-link-btn:hover {{ color: #4285f4; }}
-form {{ display: flex; width: 100%; align-items: center; margin: 0; padding: 0; }}
-input {{
-  background: transparent; 
-  border: none; 
-  color: {T['inp_col']}; 
-  font-size: 15px; 
-  width: 100%; 
-  outline: none; 
+.tray-btn:hover {{ color: #4285f4; }}
+#feemo_input_field {{
+  background: transparent;
+  border: none;
+  color: {T['inp_col']};
+  font-size: 15px;
+  width: 100%;
+  outline: none;
   height: 36px;
+  font-family: 'Inter', sans-serif;
 }}
-input::placeholder {{ color: {T['ph_col']}; opacity: 1; }}
-button {{
-  background: #4285f4; 
-  border: none; 
-  border-radius: 50%; 
-  width: 32px; 
-  height: 32px; 
-  color: #ffffff; 
-  font-size: 13px; 
-  cursor: pointer; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  margin-left: 8px; 
+#feemo_input_field::placeholder {{ color: {T['ph_col']}; opacity: 1; }}
+.send-btn {{
+  background: #4285f4;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
   outline: none;
   flex-shrink: 0;
 }}
-button:hover {{ background: #2a6dd9; }}
+.send-btn:hover {{ background: #2a6dd9; }}
 </style>
-<script>
-function triggerTrayToggle() {{
-    window.parent.location.href = window.parent.location.pathname + "?toggle_tray=true";
-}}
-function handleFormSubmission(event) {{
-    event.preventDefault();
-    var promptVal = document.getElementById('feemo_input_field').value;
-    window.parent.location.href = window.parent.location.pathname + "?feemo_prompt=" + encodeURIComponent(promptVal);
-}}
-</script>
 </head>
 <body>
 <div class="chat-pill-outer">
-    <div class="tray-link-btn" onclick="triggerTrayToggle()">{tray_symbol}</div>
-    <form onsubmit="handleFormSubmission(event)">
-        <input type="text" id="feemo_input_field" placeholder="Ask Feemo AI anything..." autocomplete="off" required />
-        <button type="submit">➤</button>
-    </form>
+  <button class="tray-btn" id="tray_toggle_btn">{tray_symbol}</button>
+  <input type="text" id="feemo_input_field" placeholder="Ask Feemo AI anything..." autocomplete="off" />
+  <button class="send-btn" id="send_btn">➤</button>
 </div>
+
+<script>
+  // Send prompt via postMessage to the Streamlit parent window
+  function sendPrompt() {{
+    var val = document.getElementById('feemo_input_field').value.trim();
+    if (!val) return;
+    window.parent.postMessage({{type: 'feemo_prompt', value: val}}, '*');
+    document.getElementById('feemo_input_field').value = '';
+  }}
+
+  // Send tray toggle signal via postMessage
+  function toggleTray() {{
+    window.parent.postMessage({{type: 'feemo_tray_toggle'}}, '*');
+  }}
+
+  document.getElementById('send_btn').addEventListener('click', sendPrompt);
+  document.getElementById('feemo_input_field').addEventListener('keydown', function(e) {{
+    if (e.key === 'Enter') sendPrompt();
+  }});
+  document.getElementById('tray_toggle_btn').addEventListener('click', toggleTray);
+</script>
 </body>
 </html>
 """
 
 components.html(html_pill_component, height=60, scrolling=False)
 
-# ── 13. DATA INTERACTION LAYER PROCESSING ─────────────────────────────────────
-q_params = st.query_params
+# Inject a small JS snippet into the main Streamlit page that:
+# 1. Listens for postMessage from the pill iframe
+# 2. Fills the hidden st.chat_input and triggers its submit event
+st.markdown("""
+<script>
+window.addEventListener('message', function(event) {
+  if (!event.data || !event.data.type) return;
 
-# Safely catch tray toggles over parent window states
-if "toggle_tray" in q_params:
-    st.session_state.show_tray = not st.session_state.show_tray
-    if not st.session_state.show_tray:
-        st.session_state.active_upload_type = None
-    st.query_params.clear()
-    st.rerun()
+  if (event.data.type === 'feemo_prompt') {
+    // Find the hidden Streamlit chat input textarea and fill + submit it
+    var textarea = document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+    if (textarea) {
+      // Use React's internal setter so Streamlit detects the change
+      var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype, 'value').set;
+      nativeInputValueSetter.call(textarea, event.data.value);
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
 
-# Safely catch input prompt submissions over parent window states
-prompt = q_params.get("feemo_prompt")
-if prompt and prompt != "":
-    full_payload = prompt
+      // Trigger Enter key to submit
+      setTimeout(function() {
+        textarea.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'Enter', code: 'Enter', keyCode: 13,
+          bubbles: true, cancelable: true
+        }));
+      }, 50);
+    }
+  }
+
+  if (event.data.type === 'feemo_tray_toggle') {
+    // Click the hidden tray toggle button that Streamlit renders
+    var trayBtn = document.querySelector('button[data-testid="feemo_tray_internal"]');
+    if (trayBtn) trayBtn.click();
+  }
+});
+</script>
+""", unsafe_allow_html=True)
+
+# Hidden native Streamlit chat_input — receives text from postMessage bridge above
+prompt = st.chat_input("Ask Feemo AI anything...", key="native_chat_input")
+
+# Hidden tray toggle button that JS can click
+col_hidden = st.columns([1])[0]
+with col_hidden:
+    st.markdown('<span data-testid="feemo_tray_internal" style="display:none"></span>', unsafe_allow_html=True)
+    if st.button("__tray__", key="feemo_tray_internal", help="tray", label_visibility="hidden"):
+        st.session_state.show_tray = not st.session_state.show_tray
+        if not st.session_state.show_tray:
+            st.session_state.active_upload_type = None
+        st.rerun()
+
+# ── 13. PROCESS SUBMITTED PROMPT ─────────────────────────────────────────────
+if prompt and prompt.strip():
+    full_payload = prompt.strip()
     if st.session_state.staged_context:
-        full_payload = f"{prompt}\n\n{st.session_state.staged_context}"
-    
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    save_chat_message("user", prompt)
-    
+        full_payload = f"{full_payload}\n\n{st.session_state.staged_context}"
+
+    st.session_state.messages.append({"role": "user", "content": prompt.strip()})
+    save_chat_message("user", prompt.strip())
     st.session_state["active_payload"] = full_payload
     st.session_state.show_tray = False
     st.session_state.active_upload_type = None
     st.session_state.staged_context = ""
-    st.query_params.clear()
     st.rerun()
 
 # ── 14. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
-    
+
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
-    
+
     api_messages = []
     for m in st.session_state.messages[:-1]:
         api_messages.append({"role": m["role"], "content": m["content"]})
     api_messages.append({"role": "user", "content": current_prompt})
-    
+
     try:
         res = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -464,7 +531,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 "max_tokens": 1000
             }
         ).json()
-        
+
         if "choices" in res:
             reply = res["choices"][0]["message"]["content"]
             ph.empty()
