@@ -142,15 +142,6 @@ div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 section[data-testid="stSidebar"]{{background:{T["sb_bg"]}!important;border-right:1px solid {T["sb_bdr"]}!important}}
 .stChatMessage p{{color:{T["msg_t"]}!important;font-size:15px!important;line-height:1.8!important}}
 
-/* Clean up Streamlit's native button styles globally inside columns */
-div[data-testid="column"] button {{
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    width: auto !important;
-}}
-
 /* Gemini Menu Panel */
 .gemini-tray{{
   background:{T["pop_bg"]};border:1px solid {T["pop_bd"]};border-radius:20px;
@@ -334,7 +325,8 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 12. PURE NATIVE HTML IFRAME PILL INJECTION ───────────────────────────────
+# ── 12. FIXED INTER-FRAME IFRAME INJECTION ───────────────────────────────────
+# Added window.parent.location updates to communicate parameters directly to Streamlit without losing the sidebar!
 tray_symbol = "✖" if st.session_state.show_tray else "＋"
 
 html_pill_component = f"""
@@ -395,12 +387,22 @@ button {{
 }}
 button:hover {{ background: #2a6dd9; }}
 </style>
+<script>
+function triggerTrayToggle() {{
+    window.parent.location.href = window.parent.location.pathname + "?toggle_tray=true";
+}}
+function handleFormSubmission(event) {{
+    event.preventDefault();
+    var promptVal = document.getElementById('feemo_input_field').value;
+    window.parent.location.href = window.parent.location.pathname + "?feemo_prompt=" + encodeURIComponent(promptVal);
+}}
+</script>
 </head>
 <body>
 <div class="chat-pill-outer">
-    <a class="tray-link-btn" href="/?toggle_tray=true" target="_self">{tray_symbol}</a>
-    <form action="/" method="get" target="_self">
-        <input type="text" name="feemo_prompt" placeholder="Ask Feemo AI anything..." autocomplete="off" required />
+    <div class="tray-link-btn" onclick="triggerTrayToggle()">{tray_symbol}</div>
+    <form onsubmit="handleFormSubmission(event)">
+        <input type="text" id="feemo_input_field" placeholder="Ask Feemo AI anything..." autocomplete="off" required />
         <button type="submit">➤</button>
     </form>
 </div>
@@ -408,13 +410,12 @@ button:hover {{ background: #2a6dd9; }}
 </html>
 """
 
-# Render via the HTML framework compiler with exact height tracking
 components.html(html_pill_component, height=60, scrolling=False)
 
 # ── 13. DATA INTERACTION LAYER PROCESSING ─────────────────────────────────────
 q_params = st.query_params
 
-# Catch Tray switch parameters
+# Safely catch tray toggles over parent window states
 if "toggle_tray" in q_params:
     st.session_state.show_tray = not st.session_state.show_tray
     if not st.session_state.show_tray:
@@ -422,7 +423,7 @@ if "toggle_tray" in q_params:
     st.query_params.clear()
     st.rerun()
 
-# Catch user text entries
+# Safely catch input prompt submissions over parent window states
 prompt = q_params.get("feemo_prompt")
 if prompt and prompt != "":
     full_payload = prompt
@@ -454,7 +455,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     try:
         res = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "0ntent-Type": "application/json"},
+            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "Content-Type": "application/json"},
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
