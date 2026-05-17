@@ -11,8 +11,12 @@ except Exception as e:
     st.stop()
 
 # ── 2. PAGE CONFIG (FORCES SIDEBAR EXPANDED ON LAUNCH) ────────────────────────
-st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
-                   initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="Feemo AI", 
+    page_icon="✦", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ── 3. SESSION STATE ──────────────────────────────────────────────────────────
 for k, v in {
@@ -117,11 +121,11 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS OVERRIDES (HARDRESTORE SIDEBAR LOCK) ────────────────────────
+# ── 8. GLOBAL CSS OVERRIDES (STABLE VISIBILITY BUILD) ─────────────────────────
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Hide Streamlit Frame elements safely */
+/* Completely Hide Streamlit Top administrative frame layout items safely */
 header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
 div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .manage-app-button {{ display: none !important; }}
@@ -130,26 +134,10 @@ div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .stApp{{background:{T["bg"]};color:{T["text"]};font-family:'Inter',sans-serif}}
 .block-container{{max-width:860px;padding-top:2.5rem!important;margin:auto}}
 
-/* ── FORCE SIDEBAR HARD RESTORE AND LOCK ── */
+/* ── STABLE SIDEBAR INTERFACE STRUCTURES ── */
 section[data-testid="stSidebar"] {{
-    position: fixed !important;
-    display: flex !important;
-    visibility: visible !important;
-    width: 300px !important;
-    left: 0px !important;
     background-color: {T["sb_bg"]} !important;
     border-right: 1px solid {T["sb_bdr"]} !important;
-    transform: none !important;
-    transition: none !important;
-    z-index: 999999 !important;
-}}
-
-/* Push main chat container content to the right so it never overlaps the locked sidebar */
-div[data-testid="stSidebarCollapsedControl"] {{
-    display: none !important;
-}}
-.stApp > div:nth-child(2) {{
-    margin-left: 0px !important;
 }}
 
 /* Brand Logo Layout */
@@ -161,7 +149,7 @@ div[data-testid="stSidebarCollapsedControl"] {{
 
 .stChatMessage p{{color:{T["msg_t"]}!important;font-size:15px!important;line-height:1.8!important}}
 
-/* Remove form spacing attributes */
+/* Remove form container layout spacing lines */
 div[data-testid="stForm"] {{
     border: none !important;
     background-color: transparent !important;
@@ -169,7 +157,7 @@ div[data-testid="stForm"] {{
     box-shadow: none !important;
 }}
 
-/* REPLICATED SINGLE-ROW PILL CAPSULE WRAPPER */
+/* THE REPLICATED SINGLE-ROW PILL CAPSULE WRAPPER */
 .chat-pill-outer {{
   display: flex;
   align-items: center;
@@ -181,7 +169,7 @@ div[data-testid="stForm"] {{
   width: 100%;
 }}
 
-/* Strict layout configurations across column splitting modules */
+/* Horizontal column splits configuration sets */
 div[data-testid="stHorizontalBlock"] {{
     gap: 0px !important;
     align-items: center !important;
@@ -193,7 +181,7 @@ div[data-testid="column"] {{
     min-width: 0 !important;
 }}
 
-/* Left Plus Button styling */
+/* Left Plus Icon styling overrides */
 .plus-col-style button {{
     background: transparent !important;
     border: none !important;
@@ -207,7 +195,7 @@ div[data-testid="column"] {{
 }}
 .plus-col-style button:hover {{ color: #4285f4 !important; }}
 
-/* Text input field background adjustments */
+/* Text entry input parameters styling overrides */
 .text-col-style .stTextInput>div>div>input {{
   background: transparent !important;
   border: none !important;
@@ -225,7 +213,7 @@ div[data-testid="column"] {{
 }}
 .text-col-style .stTextInput>label {{ display: none !important; }}
 
-/* Right hand side action trigger arrow button styling */
+/* Right button submit icon configurations */
 .send-col-style button {{
   background: #4285f4 !important;
   border: none !important;
@@ -242,7 +230,7 @@ div[data-testid="column"] {{
 }}
 .send-col-style button:hover {{ background: #2a6dd9 !important; }}
 
-/* Option menu overlay configuration sets */
+/* Context Options Overlay Popup Card Styles */
 .gemini-tray {{
   background: {T["pop_bg"]};
   border: 1px solid {T["pop_bd"]};
@@ -448,7 +436,7 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 12. HIGH STABILITY INLINE CHAT PILL BAR ───────────────────────────────────
+# ── 12. FIXED SECURE INLINE CAPSULE DECK BLOCK ────────────────────────────────
 st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
 with st.form("stable_chat_pill_form", clear_on_submit=True):
     c_plus, c_text, c_send = st.columns([0.4, 13.6, 0.4])
