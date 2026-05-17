@@ -117,11 +117,11 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS OVERRIDES (CLEAN SINGLE-ROW ENGINE) ─────────────────────────
+# ── 8. GLOBAL CSS OVERRIDES (STABLE INTERFACE DECK) ───────────────────────────
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── TARGETED HEADER & GITHUB OVERLAY HIDERS ── */
+/* ── TARGETED TOOLBAR & GITHUB HIDER ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -139,7 +139,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo Graphic metrics */
+/* Logo Layout */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -148,7 +148,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar Controls */
+/* Sidebar UI Container */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -159,7 +159,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* Remove border outlines on nested columns forms */
+/* Remove border boundaries on custom text forms */
 div[data-testid="stForm"] {{
     border: none !important;
     background-color: transparent !important;
@@ -177,7 +177,7 @@ div[data-testid="stForm"] {{
   padding: 6px 18px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
   width: 100%;
-  margin-top: 40px;
+  margin-top: 20px;
 }}
 
 div[data-testid="stHorizontalBlock"] {{
@@ -191,7 +191,7 @@ div[data-testid="column"] {{
     min-width: 0 !important;
 }}
 
-/* Left Plus button styling inside your capsule bar */
+/* Left Plus button styling inside capsule */
 .plus-col-style button {{
     background: transparent !important;
     border: none !important;
@@ -206,7 +206,7 @@ div[data-testid="column"] {{
 }}
 .plus-col-style button:hover {{ color: #4285f4 !important; }}
 
-/* Borderless input element layout formatting */
+/* Borderless center prompt element layout */
 .text-col-style .stTextInput>div>div>input {{
   background: transparent !important;
   border: none !important;
@@ -224,7 +224,7 @@ div[data-testid="column"] {{
 }}
 .text-col-style .stTextInput>label {{ display: none !important; }}
 
-/* Right hand side send arrow projectile formatting */
+/* Right hand side action arrow button style mapping */
 .send-col-style button {{
   background: #4285f4 !important;
   border: none !important;
@@ -242,7 +242,7 @@ div[data-testid="column"] {{
 }}
 .send-col-style button:hover {{ background: #2a6dd9 !important; }}
 
-/* Attachment Options Tray Panel configuration */
+/* Attachment Tray list dropdown settings */
 .gemini-tray {{
   background: {T["pop_bg"]};
   border: 1px solid {T["pop_bd"]};
@@ -287,7 +287,7 @@ div[data-testid="column"] {{
 .theme-btn button {{ background: transparent !important; border: 1px solid {T["pill_bd"]} !important; border-radius: 20px !important; color: {T["text"]} !important; font-size: 13px !important; padding: 4px 14px !important; width: auto !important; }}
 </style>""", unsafe_allow_html=True)
 
-# ── 9. SIDEBAR NAVIGATION PANEL ───────────────────────────────────────────────
+# ── 9. SIDEBAR ────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>",
                 unsafe_allow_html=True)
@@ -403,7 +403,7 @@ st.markdown(
     "<h1 class='logo-txt'>FEEMO AI</h1></div>",
     unsafe_allow_html=True)
 
-# Render chat history nodes
+# Render chat history logs
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -432,7 +432,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# File uploader dynamic drop box panels
+# File uploader panel modules
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -468,8 +468,8 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 12. HIGH-STABILITY FLOATING CAPSULE BAR (TRUE CHAT_INPUT REPLACEMENT) ─────
-# This layout block completely mimics the Gemini entry bar look within a single container line.
+# ── 12. FIXED SECURE INLINE CAPSULE CHAT DECK BAR ─────────────────────────────
+# Replaced native st.chat_input completely to secure single line layout formatting
 st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
 with st.form("stable_chat_pill_form", clear_on_submit=True):
     c_plus, c_text, c_send = st.columns([0.4, 13.2, 0.4])
