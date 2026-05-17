@@ -186,20 +186,13 @@ st.markdown(f"""
     }}
 
     /* ── NATIVE CHAT INPUT STYLING ── */
-
-    /* The chat input bar — make it look like a pill */
     div[data-testid="stChatInput"] {{
         background-color: {THEME["capsule_bg"]} !important;
         border: 1px solid {THEME["capsule_border"]} !important;
         border-radius: 999px !important;
-        padding: 4px 8px 4px 52px !important;  /* left padding leaves room for + */
         box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
-        max-width: 850px !important;
-        margin: 0 auto !important;
         position: relative !important;
     }}
-
-    /* Text area inside chat input */
     div[data-testid="stChatInput"] textarea {{
         background: transparent !important;
         color: {THEME["input_color"]} !important;
@@ -209,14 +202,14 @@ st.markdown(f"""
         box-shadow: none !important;
         resize: none !important;
         min-height: 44px !important;
-        padding: 10px 0 !important;
+        padding-left: 52px !important;
     }}
     div[data-testid="stChatInput"] textarea::placeholder {{
         color: {THEME["icon_color"]} !important;
         opacity: 1 !important;
     }}
-
-    /* Send arrow button inside chat input */
+    /* Send arrow — blue circle */
+    div[data-testid="stChatInput"] button[kind="primaryFormSubmit"],
     div[data-testid="stChatInput"] button {{
         background-color: #4285f4 !important;
         border: none !important;
@@ -230,33 +223,30 @@ st.markdown(f"""
         background-color: #2a6dd9 !important;
     }}
 
-    /* ── FLOATING + BUTTON ── */
-    /* Wrap column so we can position the button over the chat input */
-    .float-plus-wrap {{
-        position: relative;
-        z-index: 100;
-        margin-bottom: -52px;  /* pull it up to overlap the chat input */
-        margin-left: 8px;
+    /* ── INJECTED + BUTTON (positioned by JS inside the chat bar) ── */
+    #feemo-plus-btn {{
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 9999;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 1.5px solid {THEME["capsule_border"]};
+        background: transparent;
+        color: {THEME["icon_color"]};
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        transition: border-color 0.2s, color 0.2s;
     }}
-    .float-plus-wrap button {{
-        background-color: transparent !important;
-        border: 1.5px solid {THEME["capsule_border"]} !important;
-        border-radius: 50% !important;
-        width: 36px !important;
-        height: 36px !important;
-        font-size: 20px !important;
-        color: {THEME["icon_color"]} !important;
-        padding: 0 !important;
-        line-height: 1 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        transition: all 0.2s !important;
-        cursor: pointer !important;
-    }}
-    .float-plus-wrap button:hover {{
-        border-color: #4285f4 !important;
-        color: #4285f4 !important;
+    #feemo-plus-btn:hover {{
+        border-color: #4285f4;
+        color: #4285f4;
     }}
 
     /* TEXT INPUT */
@@ -567,20 +557,47 @@ else:
                         except:
                             st.error("Failed to decode asset.")
 
-    # ── TRUE SINGLE-ROW INPUT: st.chat_input (arrow built-in) + floating + ──
-    
-    # Floating + button ABOVE the chat input using a positioned container
-    btn_col, _ = st.columns([1, 20])
-    with btn_col:
-        st.markdown("<div class='float-plus-wrap'>", unsafe_allow_html=True)
-        if st.button("＋", key="tray_toggle_btn"):
-            st.session_state.show_tray = not st.session_state.show_tray
-            if not st.session_state.show_tray:
-                st.session_state.active_upload_type = None
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+    # ── CHAT INPUT WITH JS-INJECTED + BUTTON INSIDE THE BAR ──
 
-    # Native Streamlit chat input — renders as single pill with arrow
+    # JS: inject a real <button id="feemo-plus-btn"> directly into the chat input container,
+    # absolutely positioned on its left side. On click it posts a message to Streamlit
+    # via the hidden st.button mechanism.
+    st.markdown("""
+        <script>
+        (function injectPlusBtn() {
+            function doInject() {
+                const bar = document.querySelector('div[data-testid="stChatInput"]');
+                if (!bar) { setTimeout(doInject, 100); return; }
+                if (document.getElementById('feemo-plus-btn')) return;
+                bar.style.position = 'relative';
+                const btn = document.createElement('button');
+                btn.id = 'feemo-plus-btn';
+                btn.innerHTML = '+';
+                btn.title = 'Attach file / photo / code';
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    // Click the hidden Streamlit button
+                    const hiddenBtn = document.querySelector('button[data-testid="tray_toggle_btn"]') ||
+                                      document.getElementById('st-tray-trigger');
+                    if (hiddenBtn) hiddenBtn.click();
+                };
+                bar.appendChild(btn);
+            }
+            doInject();
+        })();
+        </script>
+    """, unsafe_allow_html=True)
+
+    # Hidden Streamlit button — triggered by the JS + button above
+    st.markdown("<div style='display:none'>", unsafe_allow_html=True)
+    if st.button("tray_trigger", key="tray_toggle_btn"):
+        st.session_state.show_tray = not st.session_state.show_tray
+        if not st.session_state.show_tray:
+            st.session_state.active_upload_type = None
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # Native Streamlit chat input — single pill with built-in send arrow
     prompt = st.chat_input("Ask Feemo AI anything...")
 
     # Handle new user message
