@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import PyPDF2
 from supabase import create_client
+import streamlit.components.v1 as components
 
 # ── 1. DATABASE INIT ──────────────────────────────────────────────────────────
 try:
@@ -333,29 +334,87 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── PURE SINGLE-ROW EXPERT LAYER CAPSULE BAR ──────────────────────────────────
-# Using HTML Injection combined with query parameters lets us skip double layout lines entirely.
-st.markdown(f"""
-<div style="background:{T['pill_bg']}; border:1px solid {T['pill_bd']}; border-radius:32px; padding:6px 16px; display:flex; align-items:center; box-shadow:0 8px 32px rgba(0,0,0,0.35); margin-top:20px;">
-    <a href="?toggle_tray=true" target="_self" style="text-decoration:none; color:{T['ph_col']}; font-size:24px; font-weight:300; margin-right:12px; padding:0 4px; line-height:1;">
-        { "✖" if st.session_state.show_tray else "＋" }
-    </a>
-    
-    <form id="gemini_hacked_form" action="/" method="get" style="display:flex; width:100%; align-items:center; margin:0; padding:0;">
-        <input type="text" name="feemo_prompt" placeholder="Ask Feemo AI anything..." autocomplete="off"
-            style="background:transparent; border:none; color:{T['inp_col']}; font-size:16px; width:100%; outline:none; font-family:'Inter', sans-serif; height:36px;" />
-        
-        <button type="submit" style="background:#4285f4; border:none; border-radius:50%; width:34px; height:34px; min-height:34px; color:#ffffff; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; margin-left:8px; outline:none; transition:background 0.2s;">
-            ➤
-        </button>
+# ── 12. PURE NATIVE HTML IFRAME PILL INJECTION ───────────────────────────────
+tray_symbol = "✖" if st.session_state.show_tray else "＋"
+
+html_pill_component = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body {{ margin: 0; padding: 0; background: transparent; font-family: 'Inter', sans-serif; overflow: hidden; }}
+.chat-pill-outer {{
+  background: {T['pill_bg']}; 
+  border: 1px solid {T['pill_bd']}; 
+  border-radius: 32px; 
+  padding: 4px 14px; 
+  display: flex; 
+  align-items: center; 
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  box-sizing: border-box;
+  height: 48px;
+}}
+.tray-link-btn {{
+  text-decoration: none; 
+  color: {T['ph_col']}; 
+  font-size: 24px; 
+  font-weight: 300; 
+  margin-right: 12px; 
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+}}
+.tray-link-btn:hover {{ color: #4285f4; }}
+form {{ display: flex; width: 100%; align-items: center; margin: 0; padding: 0; }}
+input {{
+  background: transparent; 
+  border: none; 
+  color: {T['inp_col']}; 
+  font-size: 15px; 
+  width: 100%; 
+  outline: none; 
+  height: 36px;
+}}
+input::placeholder {{ color: {T['ph_col']}; opacity: 1; }}
+button {{
+  background: #4285f4; 
+  border: none; 
+  border-radius: 50%; 
+  width: 32px; 
+  height: 32px; 
+  color: #ffffff; 
+  font-size: 13px; 
+  cursor: pointer; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  margin-left: 8px; 
+  outline: none;
+  flex-shrink: 0;
+}}
+button:hover {{ background: #2a6dd9; }}
+</style>
+</head>
+<body>
+<div class="chat-pill-outer">
+    <a class="tray-link-btn" href="/?toggle_tray=true" target="_self">{tray_symbol}</a>
+    <form action="/" method="get" target="_self">
+        <input type="text" name="feemo_prompt" placeholder="Ask Feemo AI anything..." autocomplete="off" required />
+        <button type="submit">➤</button>
     </form>
 </div>
-""", unsafe_allow_html=True)
+</body>
+</html>
+"""
 
-# Parse interactions through the incoming URI queries
+# Render via the HTML framework compiler with exact height tracking
+components.html(html_pill_component, height=60, scrolling=False)
+
+# ── 13. DATA INTERACTION LAYER PROCESSING ─────────────────────────────────────
 q_params = st.query_params
 
-# Handle Tray toggle interactions
+# Catch Tray switch parameters
 if "toggle_tray" in q_params:
     st.session_state.show_tray = not st.session_state.show_tray
     if not st.session_state.show_tray:
@@ -363,7 +422,7 @@ if "toggle_tray" in q_params:
     st.query_params.clear()
     st.rerun()
 
-# Catch prompt submission payloads
+# Catch user text entries
 prompt = q_params.get("feemo_prompt")
 if prompt and prompt != "":
     full_payload = prompt
@@ -380,7 +439,7 @@ if prompt and prompt != "":
     st.query_params.clear()
     st.rerun()
 
-# ── AI RESPONSE INFERENCE ─────────────────────────────────────────────────────
+# ── 14. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
@@ -395,7 +454,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     try:
         res = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "Content-Type": "application/json"},
+            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "0ntent-Type": "application/json"},
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
