@@ -58,6 +58,7 @@ sync_identity()
 
 # 5. DATABASE HISTORY UTILITIES
 def load_chat_history():
+    """Fetches the last 5 unique user messages as sidebar conversation starters."""
     if not st.session_state.user_id:
         return []
     try:
@@ -66,10 +67,40 @@ def load_chat_history():
             .select("*")
             .eq("user_id", st.session_state.user_id)
             .order("created_at", desc=True)
-            .limit(5)
+            .limit(30)
             .execute()
         )
-        return response.data if response else []
+        rows = response.data if response else []
+        seen, result = set(), []
+        for row in rows:
+            msg = row.get("message", {})
+            if msg.get("role") == "user":
+                preview = msg.get("content", "")[:30]
+                if preview not in seen:
+                    seen.add(preview)
+                    result.append(row)
+                    if len(result) == 5:
+                        break
+        return result
+    except:
+        return []
+
+def load_full_conversation(up_to_id):
+    """Loads all messages in chronological order up to and including the given row id."""
+    if not st.session_state.user_id:
+        return []
+    try:
+        response = (
+            supabase.table("chat_history")
+            .select("*")
+            .eq("user_id", st.session_state.user_id)
+            .lte("id", up_to_id)
+            .order("created_at", desc=False)
+            .limit(100)
+            .execute()
+        )
+        rows = response.data if response else []
+        return [r["message"] for r in rows if r.get("message")]
     except:
         return []
 
@@ -185,7 +216,18 @@ st.markdown(f"""
         padding: 0 !important;
     }}
 
-    /* ── NATIVE CHAT INPUT STYLING ── */
+    /* ── HIDE THE HIDDEN TRAY TRIGGER BUTTON ── */
+    .stButton:has(button[data-testid="tray_toggle_btn"]),
+    button[data-testid="tray_toggle_btn"] {{
+        position: absolute !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }}
+
+    /* ── CHAT INPUT WRAPPER — give it relative positioning ── */
     div[data-testid="stChatInput"] {{
         background-color: {THEME["capsule_bg"]} !important;
         border: 1px solid {THEME["capsule_border"]} !important;
@@ -193,6 +235,8 @@ st.markdown(f"""
         box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
         position: relative !important;
     }}
+
+    /* Textarea — push text right so + button has room */
     div[data-testid="stChatInput"] textarea {{
         background: transparent !important;
         color: {THEME["input_color"]} !important;
@@ -202,14 +246,14 @@ st.markdown(f"""
         box-shadow: none !important;
         resize: none !important;
         min-height: 44px !important;
-        padding-left: 52px !important;
+        padding-left: 54px !important;
     }}
     div[data-testid="stChatInput"] textarea::placeholder {{
         color: {THEME["icon_color"]} !important;
         opacity: 1 !important;
     }}
-    /* Send arrow — blue circle */
-    div[data-testid="stChatInput"] button[kind="primaryFormSubmit"],
+
+    /* Send arrow — blue circle (right side, already there) */
     div[data-testid="stChatInput"] button {{
         background-color: #4285f4 !important;
         border: none !important;
@@ -223,30 +267,32 @@ st.markdown(f"""
         background-color: #2a6dd9 !important;
     }}
 
-    /* ── INJECTED + BUTTON (positioned by JS inside the chat bar) ── */
+    /* ── + BUTTON: injected via JS, styled here ── */
     #feemo-plus-btn {{
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        z-index: 9999;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        border: 1.5px solid {THEME["capsule_border"]};
-        background: transparent;
-        color: {THEME["icon_color"]};
-        font-size: 20px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-        transition: border-color 0.2s, color 0.2s;
+        position: absolute !important;
+        left: 12px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        z-index: 9999 !important;
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 50% !important;
+        border: 1.5px solid {THEME["capsule_border"]} !important;
+        background: transparent !important;
+        color: {THEME["icon_color"]} !important;
+        font-size: 20px !important;
+        font-weight: 300 !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        line-height: 1 !important;
+        transition: border-color 0.2s, color 0.2s !important;
+        padding: 0 !important;
     }}
     #feemo-plus-btn:hover {{
-        border-color: #4285f4;
-        color: #4285f4;
+        border-color: #4285f4 !important;
+        color: #4285f4 !important;
     }}
 
     /* TEXT INPUT */
@@ -360,14 +406,14 @@ with st.sidebar:
         if recent_chats:
             for chat in recent_chats:
                 msg_data = chat.get("message", {})
-                preview = msg_data.get("content", "Empty conversation")[:25] + "..."
+                preview = msg_data.get("content", "Empty")[:28] + "..."
                 if st.button(f"💬 {preview}", key=f"hist_{chat['id']}", use_container_width=True):
-                    st.toast("Loading conversation history...")
-                    if msg_data:
-                        st.session_state.messages = [msg_data]
+                    full_thread = load_full_conversation(chat["id"])
+                    if full_thread:
+                        st.session_state.messages = full_thread
                         st.rerun()
         else:
-            st.caption("No recent logs found.")
+            st.caption("No recent chats yet.")
 
         st.markdown("---")
         if st.button("Logout", use_container_width=True):
@@ -557,50 +603,44 @@ else:
                         except:
                             st.error("Failed to decode asset.")
 
-    # ── CHAT INPUT WITH JS-INJECTED + BUTTON INSIDE THE BAR ──
-
-    # JS: inject a real <button id="feemo-plus-btn"> directly into the chat input container,
-    # absolutely positioned on its left side. On click it posts a message to Streamlit
-    # via the hidden st.button mechanism.
-    st.markdown("""
+    # ── CHAT INPUT: native pill + JS-injected + button ──
+    # JS injects the + button directly inside the chat bar DOM after render
+    tray_state = "open" if st.session_state.show_tray else "closed"
+    st.markdown(f"""
         <script>
-        (function injectPlusBtn() {
-            function doInject() {
-                const bar = document.querySelector('div[data-testid="stChatInput"]');
-                if (!bar) { setTimeout(doInject, 100); return; }
+        (function() {{
+            function inject() {{
+                var bar = document.querySelector('div[data-testid="stChatInput"]');
+                if (!bar) {{ setTimeout(inject, 80); return; }}
                 if (document.getElementById('feemo-plus-btn')) return;
-                bar.style.position = 'relative';
-                const btn = document.createElement('button');
+                var btn = document.createElement('button');
                 btn.id = 'feemo-plus-btn';
-                btn.innerHTML = '+';
-                btn.title = 'Attach file / photo / code';
-                btn.onclick = function(e) {
+                btn.type = 'button';
+                btn.innerText = '+';
+                btn.title = 'Attach file';
+                btn.addEventListener('click', function(e) {{
                     e.preventDefault();
-                    // Click the hidden Streamlit button
-                    const hiddenBtn = document.querySelector('button[data-testid="tray_toggle_btn"]') ||
-                                      document.getElementById('st-tray-trigger');
-                    if (hiddenBtn) hiddenBtn.click();
-                };
+                    e.stopPropagation();
+                    // Toggle tray via URL param — Streamlit picks it up on next interaction
+                    var hidden = document.querySelector('[data-testid="tray_toggle_btn"]');
+                    if (hidden) {{ hidden.click(); }}
+                }});
                 bar.appendChild(btn);
-            }
-            doInject();
-        })();
+            }}
+            inject();
+        }})();
         </script>
     """, unsafe_allow_html=True)
 
-    # Hidden Streamlit button — triggered by the JS + button above
-    st.markdown("<div style='display:none'>", unsafe_allow_html=True)
-    if st.button("tray_trigger", key="tray_toggle_btn"):
+    # Hidden trigger — zero-size, invisible
+    if st.button("＋", key="tray_toggle_btn"):
         st.session_state.show_tray = not st.session_state.show_tray
         if not st.session_state.show_tray:
             st.session_state.active_upload_type = None
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
-    # Native Streamlit chat input — single pill with built-in send arrow
     prompt = st.chat_input("Ask Feemo AI anything...")
 
-    # Handle new user message
     if prompt:
         full_prompt_payload = prompt
         if attached_context:
