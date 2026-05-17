@@ -10,7 +10,7 @@ except Exception as e:
     st.error(f"Configuration Error: {e}")
     st.stop()
 
-# ── 2. PAGE CONFIG ────────────────────────────────────────────────────────────
+# ── 2. PAGE CONFIG (FORCES SIDEBAR EXPANDED ON LAUNCH) ────────────────────────
 st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
                    initial_sidebar_state="expanded")
 
@@ -117,11 +117,11 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS OVERRIDES (STABLE SIDEBAR PROTECTION) ───────────────────────
+# ── 8. GLOBAL CSS OVERRIDES (STABLE SIDEBAR PROTECTION INTERFACE) ─────────────
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Securely Hide Streamlit Admin Tools but keep the Sidebar completely intact */
+/* Securely Hide Streamlit Administrative frames while locking down structural layouts */
 header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
 div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .manage-app-button {{ display: none !important; }}
@@ -130,6 +130,14 @@ div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .stApp{{background:{T["bg"]};color:{T["text"]};font-family:'Inter',sans-serif}}
 .block-container{{max-width:860px;padding-top:2.5rem!important;margin:auto}}
 
+/* FORCE SIDEBAR VISIBILITY OVERRIDE RULES */
+section[data-testid="stSidebar"] {{
+    display: flex !important;
+    visibility: visible !important;
+    background-color: {T["sb_bg"]} !important;
+    border-right: 1px solid {T["sb_bdr"]} !important;
+}}
+
 /* Brand Logo Layout */
 .logo-wrap{{display:flex;justify-content:center;align-items:center;margin-bottom:36px}}
 .logo-txt{{font-size:52px;font-weight:800;letter-spacing:-2px;margin:0;
@@ -137,11 +145,9 @@ div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
   -webkit-background-clip:text;-webkit-text-fill-color:transparent}}
 .logo-sym{{font-size:42px;margin-right:14px;color:#4285f4}}
 
-/* Navigation Sidebar Styles */
-section[data-testid="stSidebar"]{{background:{T["sb_bg"]}!important;border-right:1px solid {T["sb_bdr"]}!important;visibility: visible !important;}}
 .stChatMessage p{{color:{T["msg_t"]}!important;font-size:15px!important;line-height:1.8!important}}
 
-/* REMOVE ALL FORMS BACKGROUND & BORDERS OUTLINES */
+/* REMOVE ALL FORMS OUTLINES */
 div[data-testid="stForm"] {{
     border: none !important;
     background-color: transparent !important;
@@ -149,7 +155,7 @@ div[data-testid="stForm"] {{
     box-shadow: none !important;
 }}
 
-/* REPLICATED SINGLE-ROW PREMIUM PILL CAPSULE */
+/* THE REPLICATED SINGLE-ROW PILL CAPSULE WRAPPER */
 .chat-pill-outer {{
   display: flex;
   align-items: center;
@@ -158,9 +164,10 @@ div[data-testid="stForm"] {{
   border-radius: 32px;
   padding: 6px 18px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  width: 100%;
 }}
 
-/* Force exact horizontal sizing on column block grids */
+/* Strict line layout metrics grid settings */
 div[data-testid="stHorizontalBlock"] {{
     gap: 0px !important;
     align-items: center !important;
@@ -168,6 +175,7 @@ div[data-testid="stHorizontalBlock"] {{
 }}
 div[data-testid="column"] {{
     padding: 0 !important;
+    margin: 0 !important;
     min-width: 0 !important;
 }}
 
@@ -181,10 +189,11 @@ div[data-testid="column"] {{
     padding: 0 !important;
     margin-right: 12px !important;
     line-height: 1 !important;
+    width: auto !important;
 }}
 .plus-col-style button:hover {{ color: #4285f4 !important; }}
 
-/* Borderless center prompt input styling overrides */
+/* Center prompt field input text field style updates */
 .text-col-style .stTextInput>div>div>input {{
   background: transparent !important;
   border: none !important;
@@ -192,6 +201,7 @@ div[data-testid="column"] {{
   color: {T["inp_col"]} !important;
   font-size: 16px !important;
   padding: 4px 0 !important;
+  width: 100% !important;
 }}
 .text-col-style .stTextInput>div>div {{
   border: none !important;
@@ -201,7 +211,7 @@ div[data-testid="column"] {{
 }}
 .text-col-style .stTextInput>label {{ display: none !important; }}
 
-/* Right arrow submit icon button overrides */
+/* Right hand submission projectile button styles */
 .send-col-style button {{
   background: #4285f4 !important;
   border: none !important;
@@ -215,10 +225,11 @@ div[data-testid="column"] {{
   justify-content: center !important;
   padding: 0 !important;
   cursor: pointer !important;
+  width: 32px !important;
 }}
 .send-col-style button:hover {{ background: #2a6dd9 !important; }}
 
-/* Gemini Menu Floating Tray Layout */
+/* Gemini Options Drop Overlay Drawer */
 .gemini-tray {{
   background: {T["pop_bg"]};
   border: 1px solid {T["pop_bd"]};
@@ -249,7 +260,6 @@ div[data-testid="column"] {{
 }}
 .tray-item-btn button:hover {{ background: {T["hov"]} !important; }}
 
-/* Theme adjustments */
 .new-chat-btn button {{
   background: linear-gradient(135deg,#4285f4,#9b72cb)!important;
   border: none !important;
@@ -260,6 +270,7 @@ div[data-testid="column"] {{
   padding: 10px 0 !important;
   width: 100% !important;
 }}
+.new-chat-btn button:hover {{ opacity: .9 !important; }}
 .theme-btn button {{ background: transparent !important; border: 1px solid {T["pill_bd"]} !important; border-radius: 20px !important; color: {T["text"]} !important; font-size: 13px !important; padding: 4px 14px !important; width: auto !important; }}
 </style>""", unsafe_allow_html=True)
 
@@ -424,31 +435,31 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 12. FIXED STABLE SINGLE-ROW INTERFACE BAR ─────────────────────────────────
-# We wrap everything inside an st.form block but use stylized sub-columns so it maps onto one line flawlessly.
-st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
-with st.form("stable_chat_form", clear_on_submit=True):
-    col_plus, col_text, col_send = st.columns([0.5, 14.0, 0.5])
-    
-    with col_plus:
-        st.markdown("<div class='plus-col-style'>", unsafe_allow_html=True)
-        tray_label = "✖" if st.session_state.show_tray else "＋"
-        plus_clicked = st.form_submit_button(tray_label)
-        st.markdown("</div>", unsafe_allow_html=True)
+# ── 12. FIXED SECURE INLINE CAPSULE DECK BLOCK ────────────────────────────────
+# Using explicit layouts nested within an execution block to preserve column symmetry perfectly
+with st.container():
+    st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
+    with st.form("stable_chat_pill_form", clear_on_submit=True):
+        c_plus, c_text, c_send = st.columns([0.4, 13.6, 0.4])
         
-    with col_text:
-        st.markdown("<div class='text-col-style'>", unsafe_allow_html=True)
-        prompt = st.text_input("msg", placeholder="Ask Feemo AI anything...", label_visibility="collapsed")
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-    with col_send:
-        st.markdown("<div class='send-col-style'>", unsafe_allow_html=True)
-        send_clicked = st.form_submit_button("➤")
-        st.markdown("</div>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+        with c_plus:
+            st.markdown("<div class='plus-col-style'>", unsafe_allow_html=True)
+            tray_label = "✖" if st.session_state.show_tray else "＋"
+            plus_clicked = st.form_submit_button(tray_label)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+        with c_text:
+            st.markdown("<div class='text-col-style'>", unsafe_allow_html=True)
+            prompt = st.text_input("msg", placeholder="Ask Feemo AI anything...", label_visibility="collapsed")
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+        with c_send:
+            st.markdown("<div class='send-col-style'>", unsafe_allow_html=True)
+            send_clicked = st.form_submit_button("➤")
+            st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ── 13. INTERACTION EVALUATORS ────────────────────────────────────────────────
-# Safe form action processing without leaking URL path states
 if plus_clicked:
     st.session_state.show_tray = not st.session_state.show_tray
     if not st.session_state.show_tray:
