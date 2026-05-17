@@ -119,9 +119,9 @@ TYPING_HTML = """
 
 # ── 8. GLOBAL CSS OVERRIDES ───────────────────────────────────────────────────
 st.markdown(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Hide Dev Header Elements */
+/* Completely Hide Streamlit Frame Top Bar elements */
 header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
 div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .manage-app-button {{ display: none !important; }}
@@ -141,30 +141,14 @@ div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 section[data-testid="stSidebar"]{{background:{T["sb_bg"]}!important;border-right:1px solid {T["sb_bdr"]}!important}}
 .stChatMessage p{{color:{T["msg_t"]}!important;font-size:15px!important;line-height:1.8!important}}
 
-/* Base Layout Wrapper Panel */
-.chat-pill-outer{{
-  display:flex;align-items:center;background:{T["pill_bg"]};border:1px solid {T["pill_bd"]};
-  border-radius:32px;padding:6px 14px;box-shadow:0 8px 32px rgba(0,0,0,.35);margin-top:10px;
+/* Clean up Streamlit's native button styles globally inside columns */
+div[data-testid="column"] button {{
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    width: auto !important;
 }}
-
-/* Structural Inline Configuration */
-div[data-testid="stHorizontalBlock"]{{gap:12px!important;align-items:center!important;width:100%!important}}
-div[data-testid="column"]{{padding:0!important;min-width:0!important}}
-
-/* Borderless Utility Buttons */
-div[data-testid="column"] button{{
-  background:transparent!important;border:none!important;color:{T["ph_col"]}!important;
-  font-size:22px!important;padding:0!important;line-height:1!important;width:auto!important;
-}}
-div[data-testid="column"] button:hover{{color:#4285f4!important}}
-
-/* Text Area Style Neutralization */
-.text-col .stTextInput>div>div>input{{
-  background:transparent!important;border:none!important;box-shadow:none!important;
-  color:{T["inp_col"]}!important;font-size:16px!important;padding:4px 0!important;
-}}
-.text-col .stTextInput>div>div{{border:none!important;background:transparent!important;box-shadow:none!important;padding:0!important}}
-.text-col .stTextInput>label{{display:none!important}}
 
 /* Gemini Menu Panel */
 .gemini-tray{{
@@ -173,7 +157,7 @@ div[data-testid="column"] button:hover{{color:#4285f4!important}}
 }}
 .gemini-tray-item{{
   display:flex;align-items:center;gap:12px;padding:10px 18px;color:{T["text"]};font-size:14.5px;font-weight:500;
-  border:none;background:transparent;width:100%;text-align:left;cursor:pointer;
+  border:none;background:transparent;width:100%;text-align:left;
 }}
 .gemini-tray-divider{{height:1px;background:{T["pop_bd"]};margin:6px 0}}
 .tray-item-btn button{{
@@ -182,10 +166,9 @@ div[data-testid="column"] button:hover{{color:#4285f4!important}}
 }}
 .tray-item-btn button:hover{{background:{T["hov"]}!important}}
 
-/* Control Button Custom Styles */
 .new-chat-btn button{{
   background:linear-gradient(135deg,#4285f4,#9b72cb)!important;border:none!important;border-radius:12px!important;
-  color:#fff!important;font-weight:600!important;font-size:14px!important;padding:10px 0!important;
+  color:#fff!important;font-weight:600!important;font-size:14px!important;padding:10px 0!important;width:100% !important;
 }}
 .new-chat-btn button:hover{{opacity:.9!important}}
 .theme-btn button{{background:transparent!important;border:1px solid {T["pill_bd"]}!important;border-radius:20px!important;color:{T["text"]}!important;font-size:13px!important;padding:4px 14px!important;width:auto!important}}
@@ -350,31 +333,39 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── CAPSULE CHAT PILL BAR INTERFACE ───────────────────────────────────────────
-st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
-col_plus, col_text, col_send = st.columns([0.6, 14.8, 0.6])
+# ── PURE SINGLE-ROW EXPERT LAYER CAPSULE BAR ──────────────────────────────────
+# Using HTML Injection combined with query parameters lets us skip double layout lines entirely.
+st.markdown(f"""
+<div style="background:{T['pill_bg']}; border:1px solid {T['pill_bd']}; border-radius:32px; padding:6px 16px; display:flex; align-items:center; box-shadow:0 8px 32px rgba(0,0,0,0.35); margin-top:20px;">
+    <a href="?toggle_tray=true" target="_self" style="text-decoration:none; color:{T['ph_col']}; font-size:24px; font-weight:300; margin-right:12px; padding:0 4px; line-height:1;">
+        { "✖" if st.session_state.show_tray else "＋" }
+    </a>
+    
+    <form id="gemini_hacked_form" action="/" method="get" style="display:flex; width:100%; align-items:center; margin:0; padding:0;">
+        <input type="text" name="feemo_prompt" placeholder="Ask Feemo AI anything..." autocomplete="off"
+            style="background:transparent; border:none; color:{T['inp_col']}; font-size:16px; width:100%; outline:none; font-family:'Inter', sans-serif; height:36px;" />
+        
+        <button type="submit" style="background:#4285f4; border:none; border-radius:50%; width:34px; height:34px; min-height:34px; color:#ffffff; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; margin-left:8px; outline:none; transition:background 0.2s;">
+            ➤
+        </button>
+    </form>
+</div>
+""", unsafe_allow_html=True)
 
-with col_plus:
-    # Explicit formless button handles overlay layout switches cleanly
-    if st.button("＋", key="tray_toggle_trigger"):
-        st.session_state.show_tray = not st.session_state.show_tray
-        if not st.session_state.show_tray:
-            st.session_state.active_upload_type = None
-        st.rerun()
+# Parse interactions through the incoming URI queries
+q_params = st.query_params
 
-with col_text:
-    st.markdown("<div class='text-col'>", unsafe_allow_html=True)
-    prompt = st.text_input("msg", placeholder="Ask Feemo AI anything…", label_visibility="collapsed", key="user_prompt_input")
-    st.markdown("</div>", unsafe_allow_html=True)
+# Handle Tray toggle interactions
+if "toggle_tray" in q_params:
+    st.session_state.show_tray = not st.session_state.show_tray
+    if not st.session_state.show_tray:
+        st.session_state.active_upload_type = None
+    st.query_params.clear()
+    st.rerun()
 
-with col_send:
-    # Clicking this or running native keyboard enters executes code evaluations perfectly
-    send_triggered = st.button("➤", key="send_action_trigger")
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Parse Message and Payload Deliveries 
-if (send_triggered or (prompt and prompt != "")) and prompt:
-    # Gather any context staged from the attachment dashboard
+# Catch prompt submission payloads
+prompt = q_params.get("feemo_prompt")
+if prompt and prompt != "":
     full_payload = prompt
     if st.session_state.staged_context:
         full_payload = f"{prompt}\n\n{st.session_state.staged_context}"
@@ -382,13 +373,11 @@ if (send_triggered or (prompt and prompt != "")) and prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     save_chat_message("user", prompt)
     
-    # Store payload into session history temporarily to pass context down to API node
     st.session_state["active_payload"] = full_payload
-    
-    # Reset layout configuration state
     st.session_state.show_tray = False
     st.session_state.active_upload_type = None
     st.session_state.staged_context = ""
+    st.query_params.clear()
     st.rerun()
 
 # ── AI RESPONSE INFERENCE ─────────────────────────────────────────────────────
@@ -396,10 +385,8 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
     
-    # Extract the full payload with attachments if available
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
     
-    # Reconstruct transaction message matrix matching structural expectations
     api_messages = []
     for m in st.session_state.messages[:-1]:
         api_messages.append({"role": m["role"], "content": m["content"]})
