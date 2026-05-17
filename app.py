@@ -117,20 +117,19 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS ─────────────────────────────────────────────────────────────
+# ── 8. GLOBAL CSS (UPDATED WITH STREAMLIT HEADER HIDER) ───────────────────────
 st.markdown(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Hide Streamlit chrome but KEEP sidebar toggle working */
+/* ── HIDE STREAMLIT CHROME AND GITHUB TOOLBAR ── */
+header[data-testid="stHeader"],
 div[data-testid="stStatusWidget"],
 .manage-app-button,
 #MainMenu,
-footer {{ visibility: hidden !important; }}
-
-/* Make header transparent so sidebar toggle button still exists in DOM */
-header[data-testid="stHeader"] {{
-    background: transparent !important;
-    height: 2.5rem !important;
+footer {{ 
+    visibility: hidden !important; 
+    height: 0px !important;
+    padding: 0 !important;
 }}
 
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
@@ -357,8 +356,6 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # ── 12. TRAY ─────────────────────────────────────────────────────────────────
-# The tray toggle sits above the input.
-# We use a small column trick so the button appears left-aligned near the input.
 tray_label = "✖" if st.session_state.show_tray else "＋"
 col_tray, col_spacer = st.columns([1, 11])
 with col_tray:
@@ -440,7 +437,7 @@ if prompt and prompt.strip():
     st.session_state.messages.append({"role": "user", "content": prompt.strip()})
     save_chat_message("user", prompt.strip())
     st.session_state["active_payload"] = full_payload
-    st.session_state.show_tray         = False
+    st.session_state.show_tray           = False
     st.session_state.active_upload_type = None
     st.session_state.staged_context    = ""
     st.rerun()
