@@ -121,11 +121,12 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS OVERRIDES (STABLE VISIBILITY BUILD) ─────────────────────────
-st.markdown(f"""<style>
+# ── 8. GLOBAL CSS OVERRIDES (STABLE THEME MAPPER) ─────────────────────────────
+st.markdown(f"""
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Completely Hide Streamlit Top administrative frame layout items safely */
+/* Clean up header elements safely */
 header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
 div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .manage-app-button {{ display: none !important; }}
@@ -134,10 +135,12 @@ div[data-testid="stStatusWidget"] {{ visibility: hidden !important; }}
 .stApp{{background:{T["bg"]};color:{T["text"]};font-family:'Inter',sans-serif}}
 .block-container{{max-width:860px;padding-top:2.5rem!important;margin:auto}}
 
-/* Sidebar Protection */
+/* Sidebar Protection Visibility Map */
 section[data-testid="stSidebar"] {{
     background-color: {T["sb_bg"]} !important;
     border-right: 1px solid {T["sb_bdr"]} !important;
+    display: flex !important;
+    visibility: visible !important;
 }}
 
 /* Brand Logo Layout */
@@ -149,7 +152,7 @@ section[data-testid="stSidebar"] {{
 
 .stChatMessage p{{color:{T["msg_t"]}!important;font-size:15px!important;line-height:1.8!important}}
 
-/* Remove form container layout spacing lines */
+/* Remove form component container spacing limits */
 div[data-testid="stForm"] {{
     border: none !important;
     background-color: transparent !important;
@@ -157,7 +160,7 @@ div[data-testid="stForm"] {{
     box-shadow: none !important;
 }}
 
-/* THE REPLICATED SINGLE-ROW PILL CAPSULE WRAPPER */
+/* REPLICATED SINGLE-ROW PILL CAPSULE WRAPPER */
 .chat-pill-outer {{
   display: flex;
   align-items: center;
@@ -169,7 +172,7 @@ div[data-testid="stForm"] {{
   width: 100%;
 }}
 
-/* Horizontal column splits configuration sets */
+/* Force structural inline alignment columns */
 div[data-testid="stHorizontalBlock"] {{
     gap: 0px !important;
     align-items: center !important;
@@ -181,7 +184,7 @@ div[data-testid="column"] {{
     min-width: 0 !important;
 }}
 
-/* Left Plus Icon styling overrides */
+/* Left Plus Icon button override definitions */
 .plus-col-style button {{
     background: transparent !important;
     border: none !important;
@@ -195,7 +198,7 @@ div[data-testid="column"] {{
 }}
 .plus-col-style button:hover {{ color: #4285f4 !important; }}
 
-/* Text entry input parameters styling overrides */
+/* Text entry borderless input style modifications */
 .text-col-style .stTextInput>div>div>input {{
   background: transparent !important;
   border: none !important;
@@ -213,7 +216,7 @@ div[data-testid="column"] {{
 }}
 .text-col-style .stTextInput>label {{ display: none !important; }}
 
-/* Right button submit icon configurations */
+/* Right hand side execution submit button style updates */
 .send-col-style button {{
   background: #4285f4 !important;
   border: none !important;
@@ -230,7 +233,7 @@ div[data-testid="column"] {{
 }}
 .send-col-style button:hover {{ background: #2a6dd9 !important; }}
 
-/* Context Options Overlay Popup Card Styles */
+/* Custom Menu Options Popup Card Layout Sheet */
 .gemini-tray {{
   background: {T["pop_bg"]};
   border: 1px solid {T["pop_bd"]};
@@ -273,7 +276,8 @@ div[data-testid="column"] {{
 }}
 .new-chat-btn button:hover {{ opacity: .9 !important; }}
 .theme-btn button {{ background: transparent !important; border: 1px solid {T["pill_bd"]} !important; border-radius: 20px !important; color: {T["text"]} !important; font-size: 13px !important; padding: 4px 14px !important; width: auto !important; }}
-</style>""", unsafe_allow_html=True)
+</style>
+""", unsafe_allow_html=True)
 
 # ── 9. SIDEBAR NAVIGATION ─────────────────────────────────────────────────────
 with st.sidebar:
@@ -378,6 +382,8 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
+attached_context = ""
+
 # Render Floating Context Selection Menu Overlay
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
@@ -434,7 +440,7 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 12. FIXED SECURE INLINE CAPSULE DECK BLOCK ────────────────────────────────
+# ── 12. FLOATING SINGLE-ROW CAPSULE PILL INTERFACE BAR ────────────────────────
 st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
 with st.form("stable_chat_pill_form", clear_on_submit=True):
     c_plus, c_text, c_send = st.columns([0.4, 13.6, 0.4])
