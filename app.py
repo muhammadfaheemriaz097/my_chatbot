@@ -121,7 +121,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── TARGETED TOOLBAR & GITHUB HIDER ── */
+/* Hide GitHub toolbar, edit pencil, and share dropdown completely */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -132,7 +132,7 @@ footer {{
     visibility: hidden !important; 
 }}
 
-/* Leave header transparent so the native sidebar toggle doesn't break */
+/* Leave header container active so sidebar toggle lives normally */
 header[data-testid="stHeader"] {{
     background: transparent !important;
 }}
@@ -140,7 +140,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo */
+/* Logo Layout */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -149,7 +149,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar Container UI Elements */
+/* Sidebar UI Elements */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -160,7 +160,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* Remove form container layout spacing lines */
+/* Strip native form layouts */
 div[data-testid="stForm"] {{
     border: none !important;
     background-color: transparent !important;
@@ -168,7 +168,7 @@ div[data-testid="stForm"] {{
     box-shadow: none !important;
 }}
 
-/* FLOATING SINGLE-ROW PILL CAPSULE WRAPPER */
+/* REPLICATED SINGLE-ROW CAPSULE CHAT PILL BAR */
 .chat-pill-outer {{
   display: flex;
   align-items: center;
@@ -192,7 +192,7 @@ div[data-testid="column"] {{
     min-width: 0 !important;
 }}
 
-/* Left Plus Icon styling */
+/* Left Plus button formatting inside capsule */
 .plus-col-style button {{
     background: transparent !important;
     border: none !important;
@@ -225,7 +225,7 @@ div[data-testid="column"] {{
 }}
 .text-col-style .stTextInput>label {{ display: none !important; }}
 
-/* Right hand side action arrow button styling */
+/* Right hand send arrow button formatting inside capsule */
 .send-col-style button {{
   background: #4285f4 !important;
   border: none !important;
@@ -243,7 +243,7 @@ div[data-testid="column"] {{
 }}
 .send-col-style button:hover {{ background: #2a6dd9 !important; }}
 
-/* Option menu overlay configuration sets */
+/* Popup menu overlay layout dimensions */
 .gemini-tray {{
   background: {T["pop_bg"]};
   border: 1px solid {T["pop_bd"]};
@@ -401,4 +401,157 @@ if not st.session_state.authenticated:
 # ── 11. CHAT WORKSPACE ────────────────────────────────────────────────────────
 st.markdown(
     "<div class='logo-wrap'><span class='logo-sym'>✦</span>"
-    "
+    "<h1 class='logo-txt'>FEEMO AI</h1></div>",
+    unsafe_allow_html=True)
+
+# Render chat history
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+st.markdown("---")
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+staged_context_input = ""
+
+# Render Floating Context Selection Menu Overlay
+if st.session_state.show_tray and not st.session_state.active_upload_type:
+    st.markdown(f"""
+    <div class="gemini-tray">
+      <div class="gemini-tray-item">📎 &nbsp; Upload file</div>
+      <div class="gemini-tray-divider"></div>
+      <div class="gemini-tray-item">🖼️ &nbsp; Photos</div>
+      <div class="gemini-tray-divider"></div>
+      <div class="gemini-tray-item">📁 &nbsp; Import code</div>
+    </div>""", unsafe_allow_html=True)
+
+    ca, cb, cc = st.columns([1, 1, 1])
+    with ca:
+        if st.button("📎 Upload file", key="opt_pdf", use_container_width=True):
+            st.session_state.active_upload_type = "pdf"; st.rerun()
+    with cb:
+        if st.button("🖼️ Photos", key="opt_photo", use_container_width=True):
+            st.session_state.active_upload_type = "photo"; st.rerun()
+    with cc:
+        if st.button("📁 Import code", key="opt_code", use_container_width=True):
+            st.session_state.active_upload_type = "code"; st.rerun()
+
+# File uploader panel
+if st.session_state.active_upload_type:
+    with st.container(border=True):
+        ch, cc2 = st.columns([12, 1])
+        with cc2:
+            if st.button("✖", key="close_uploader"):
+                st.session_state.active_upload_type = None
+                st.session_state.show_tray = False
+                st.rerun()
+        with ch:
+            atype = st.session_state.active_upload_type
+            if atype == "pdf":
+                f = st.file_uploader("PDF Document", type="pdf", key="fu_pdf")
+                if f:
+                    try:
+                        reader = PyPDF2.PdfReader(f)
+                        txt = "".join(p.extract_text() or "" for p in reader.pages[:10])
+                        staged_context_input += f"\n[PDF: {f.name}]:\n{txt[:5000]}"
+                        st.success(f"Context Staged: {f.name}")
+                    except: st.error("Could not parse PDF.")
+            elif atype == "photo":
+                f = st.file_uploader("Image", type=["png","jpg","jpeg"], key="fu_photo")
+                if f:
+                    st.image(f, width=200)
+                    st.sidebar.image(f)
+                    staged_context_input += f"\n[Image: {f.name}]"
+                    st.success(f"Vision Asset Staged: {f.name}")
+            elif atype == "code":
+                f = st.file_uploader("Code / Data file",
+                                     type=["txt","py","csv","json"], key="fu_code")
+                if f:
+                    try:
+                        staged_context_input += (
+                            f"\n[File: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
+                        st.success(f"Source Code Staged: {f.name}")
+                    except: st.error("Could not decode file.")
+
+# ── 12. HIGH-STABILITY FLOATING CAPSULE BAR ───────────────────────────────────
+st.markdown("<div class='chat-pill-outer'>", unsafe_allow_html=True)
+with st.form("stable_chat_pill_form", clear_on_submit=True):
+    c_plus, c_text, c_send = st.columns([0.4, 13.2, 0.4])
+    
+    with c_plus:
+        st.markdown("<div class='plus-col-style'>", unsafe_allow_html=True)
+        tray_label = "✖" if st.session_state.show_tray else "＋"
+        plus_clicked = st.form_submit_button(tray_label)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with c_text:
+        st.markdown("<div class='text-col-style'>", unsafe_allow_html=True)
+        prompt = st.text_input("msg", placeholder="Ask Feemo AI anything...", label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with c_send:
+        st.markdown("<div class='send-col-style'>", unsafe_allow_html=True)
+        send_clicked = st.form_submit_button("➤")
+        st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+# ── 13. INTERACTION EVALUATORS ────────────────────────────────────────────────
+if plus_clicked:
+    st.session_state.show_tray = not st.session_state.show_tray
+    if not st.session_state.show_tray:
+        st.session_state.active_upload_type = None
+    st.rerun()
+
+if send_clicked and prompt:
+    full_payload = prompt
+    if staged_context_input:
+        full_payload = f"{prompt}\n\n{staged_context_input}"
+        
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    save_chat_message("user", prompt)
+    
+    st.session_state["active_payload"] = full_payload
+    st.session_state.show_tray = False
+    st.session_state.active_upload_type = None
+    st.session_state.staged_context = ""
+    st.rerun()
+
+# ── 14. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    ph = st.empty()
+    ph.markdown(TYPING_HTML, unsafe_allow_html=True)
+    
+    current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
+    
+    api_messages = []
+    for m in st.session_state.messages[:-1]:
+        api_messages.append({"role": m["role"], "content": m["content"]})
+    api_messages.append({"role": "user", "content": current_prompt})
+    
+    try:
+        res = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": "Bearer " + st.secrets["GROQ_API_KEY"], "Content-Type": "application/json"},
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": f"You are Feemo AI, a helpful assistant to {st.session_state.first_name}."}
+                ] + api_messages,
+                "max_tokens": 1000
+            }
+        ).json()
+        
+        if "choices" in res:
+            reply = res["choices"][0]["message"]["content"]
+            ph.empty()
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            save_chat_message("assistant", reply)
+            if "active_payload" in st.session_state:
+                del st.session_state["active_payload"]
+            st.rerun()
+        else:
+            ph.empty()
+            st.error("Inference structure failure.")
+    except Exception as ex:
+        ph.empty()
+        st.error(f"API execution failure: {ex}")
