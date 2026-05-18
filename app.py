@@ -38,10 +38,11 @@ def sync_identity():
             st.session_state.authenticated = True
             st.session_state.user_id = res.user.id
             meta = res.user.user_metadata or {}
-            # FIXED: Read safely from the verified response email attributes
+            # Clean variable tracking fix
+            user_email = getattr(res.user, "email", "Engineer@feemo.ai")
             st.session_state.first_name = (
                 meta.get("full_name") or meta.get("first_name")
-                or res.user.email.split("@")[0]
+                or user_email.split("@")[0]
             )
     except Exception:
         pass
@@ -488,6 +489,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     contents.append(types.Content(role="user", parts=current_parts))
 
     try:
+        # Generate prediction content via stable fallback client engine
         response = client.models.generate_content(
             model="gemini-1.5-flash",
             contents=contents,
