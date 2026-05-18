@@ -38,7 +38,6 @@ def sync_identity():
             st.session_state.authenticated = True
             st.session_state.user_id = res.user.id
             meta = res.user.user_metadata or {}
-            # Clean variable tracking fix
             user_email = getattr(res.user, "email", "Engineer@feemo.ai")
             st.session_state.first_name = (
                 meta.get("full_name") or meta.get("first_name")
@@ -145,7 +144,7 @@ header[data-testid="stHeader"] {{
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
 /* Logo */
-.logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
+.logo-wrap {{ display:flex; justifycontent:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
     background:linear-gradient(90deg,#4285f4,#9b72cb,#d96570,#f4af45);
@@ -470,14 +469,17 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
     contents = []
     
+    # Process historical turns safely and drop bad model path values out of system strings
     for m in st.session_state.messages[:-1]:
         role_label = "user" if m.get("role") == "user" else "model"
-        contents.append(
-            types.Content(
-                role=role_label,
-                parts=[types.Part.from_text(text=str(m.get("content", "")))]
+        raw_msg = str(m.get("content", ""))
+        if "models/" not in raw_msg:
+            contents.append(
+                types.Content(
+                    role=role_label,
+                    parts=[types.Part.from_text(text=raw_msg)]
+                )
             )
-        )
 
     current_parts = []
     if img_bytes:
@@ -489,7 +491,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     contents.append(types.Content(role="user", parts=current_parts))
 
     try:
-        # Generate prediction content via stable fallback client engine
+        # HARD SANITIZED MODEL KEY CALL
         response = client.models.generate_content(
             model="gemini-1.5-flash",
             contents=contents,
