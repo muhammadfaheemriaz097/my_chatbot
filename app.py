@@ -121,7 +121,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── HIDE TOOLBAR COMPONENT LAYOUTS COMPLETELY ── */
+/* Hide upper toolbar elements completely */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -139,7 +139,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo Graphic metrics Layout */
+/* Logo */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -148,7 +148,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar UI Container Setup */
+/* Sidebar Container elements */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -159,7 +159,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* Chat bottom input structure definitions */
+/* Native input modifications */
 div[data-testid="stBottom"] > div {{
     background: transparent !important;
     padding: 8px 0 16px 0 !important;
@@ -196,7 +196,7 @@ div[data-testid="stChatInput"] button:hover {{
     background: #2a6dd9 !important;
 }}
 
-/* Options panel tray icon toggle alignments */
+/* Tray toggle button */
 div[data-testid="stHorizontalBlock"] .tray-col button {{
     background: {T["pill_bg"]} !important;
     border: 1px solid {T["pill_bd"]} !important;
@@ -212,7 +212,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
     border-color: #4285f4 !important;
 }}
 
-/* Custom selection tray dropdown menu card metrics */
+/* Tray panel */
 .gemini-tray {{
     background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
     padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
@@ -223,7 +223,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 .gemini-tray-divider {{ height:1px; background:{T["pop_bd"]}; margin:4px 0; }}
 
-/* Sidebar button properties */
+/* Sidebar buttons */
 .new-chat-btn button {{
     background:linear-gradient(135deg,#4285f4,#9b72cb) !important;
     border:none !important; border-radius:12px !important;
@@ -238,7 +238,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 </style>""", unsafe_allow_html=True)
 
-# ── 9. SIDEBAR CONTROLS ───────────────────────────────────────────────────────
+# ── 9. SIDEBAR ────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>",
                 unsafe_allow_html=True)
@@ -354,12 +354,12 @@ st.markdown(
     "<h1 class='logo-txt'>FEEMO AI</h1></div>",
     unsafe_allow_html=True)
 
-# Render chat history logs safely
+# Render chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(str(msg.get("content", "")))
 
-# ── 12. TRAY PANEL OVERLAYS ───────────────────────────────────────────────────
+# ── 12. TRAY ─────────────────────────────────────────────────────────────────
 tray_label = "✖" if st.session_state.show_tray else "＋"
 col_tray, col_spacer = st.columns([1, 11])
 with col_tray:
@@ -371,7 +371,7 @@ with col_tray:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Tray options card overlay framework
+# Tray panel
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
@@ -393,7 +393,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# Contextual attachment uploader panel components
+# File uploader panel
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -410,14 +410,14 @@ if st.session_state.active_upload_type:
                     try:
                         reader = PyPDF2.PdfReader(f)
                         txt = "".join(p.extract_text() or "" for p in reader.pages[:10])
-                        st.session_state.staged_context += f"\n[PDF DATA OVERLAY: {f.name}]:\n{txt[:4000]}"
+                        st.session_state.staged_context += f"\n[FILE ATTACHMENT RAW_TEXT: {f.name}]:\n{txt[:4000]}"
                         st.success(f"Context Staged: {f.name}")
                     except: st.error("Could not parse PDF.")
             elif atype == "photo":
                 f = st.file_uploader("Image", type=["png","jpg","jpeg"], key="fu_photo")
                 if f:
                     st.image(f, width=200)
-                    st.session_state.staged_context += f"\n[USER IMAGE PROVIDED ATTACHMENT: {f.name}]"
+                    st.session_state.staged_context += f"\n[USER VISUAL REFERENCE ATTACHED: {f.name}]"
                     st.success(f"Visual File Staged: {f.name}")
             elif atype == "code":
                 f = st.file_uploader("Code / Data file",
@@ -425,23 +425,22 @@ if st.session_state.active_upload_type:
                 if f:
                     try:
                         st.session_state.staged_context += (
-                            f"\n[SOURCE CODE DATA OVERLAY: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
+                            f"\n[SOURCE CODE DOCUMENT LAYER: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 13. NATIVE CHAT INPUT BAR ─────────────────────────────────────────────────
+# ── 13. CHAT INPUT ────────────────────────────────────────────────────────────
 prompt = st.chat_input("Ask Feemo AI anything...")
 
-# ── 14. PROCESS PROMPT AND SYSTEM INTERCEPT ───────────────────────────────────
+# ── 14. PROCESS PROMPT ───────────────────────────────────────────────────────
 if prompt and prompt.strip():
     full_payload = prompt.strip()
-    
-    # Secure systemic linkage injection so Groq reads contextual attachments flawlessly
     if st.session_state.staged_context:
+        # Wrap everything in a strong formatting block that structural context parsers can read natively
         full_payload = (
-            f"Please process my core instruction matching this attached file context data layer.\n"
-            f"Core User Instruction: {prompt.strip()}\n\n"
-            f"Staged Context Data:\n{st.session_state.staged_context}"
+            f"Active Workspace Context Data Injected:\n"
+            f"{st.session_state.staged_context}\n\n"
+            f"User Direct Instruction Request:\n{prompt.strip()}"
         )
 
     st.session_state.messages.append({"role": "user", "content": prompt.strip()})
@@ -453,14 +452,13 @@ if prompt and prompt.strip():
     st.session_state.staged_context    = ""
     st.rerun()
 
-# ── 15. AI RESPONSE INFERENCE LOOP ────────────────────────────────────────────
+# ── 15. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
 
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
 
-    # Safe historical conversation context conversion tracking 
     api_messages = []
     for m in st.session_state.messages[:-1]:
         api_messages.append({"role": m["role"], "content": str(m.get("content", ""))})
@@ -479,9 +477,10 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                     {
                         "role": "system", 
                         "content": (
-                            f"You are Feemo AI, a helpful, advanced assistant to {st.session_state.first_name}. "
-                            f"You have deep engineering context awareness. When text, files, code, or images "
-                            f"are shared, analyze the appended data layers carefully to fulfill instructions."
+                            f"You are Feemo AI, a highly advanced assistant with expert-level spatial UI, layout design, and coding capabilities. "
+                            f"IMPORTANT: The user might share layout data blueprints, file data overlays, or structural visual descriptions inside their prompt blocks. "
+                            f"Never output generic replies saying you are text-based or cannot read input data layers. Analyze the custom workspace text context sections "
+                            f"meticulously to generate identical source code architectures, CSS grids, and exact functional UI code blocks requested."
                         )
                     }
                 ] + api_messages,
@@ -494,7 +493,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             ph.empty()
             st.session_state.messages.append({"role": "assistant", "content": reply})
             save_chat_message("assistant", reply)
-            
             if "active_payload" in st.session_state: 
                 del st.session_state["active_payload"]
             st.rerun()
