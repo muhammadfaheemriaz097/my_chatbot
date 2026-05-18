@@ -421,7 +421,6 @@ if st.session_state.active_upload_type:
                 if f:
                     st.image(f, width=200)
                     bytes_data = f.getvalue()
-                    # Convert image binary to direct Base64 inline tracking string
                     st.session_state.staged_image_b64 = base64.b64encode(bytes_data).decode("utf-8")
                     st.success(f"Image Pixel Context Processed and Staged: {f.name}")
             elif atype == "code":
@@ -463,15 +462,17 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
     image_b64_payload = st.session_state.get("active_image_payload", "")
 
-    # Meticulously loop through and convert every historical turn into vision-compliant payload structures
+    # Clean and explicitly filter out past history entries that are empty or broken
     api_messages = []
     for m in st.session_state.messages[:-1]:
-        api_messages.append({
-            "role": m["role"],
-            "content": [{"type": "text", "text": str(m.get("content", ""))}]
-        })
+        m_content = str(m.get("content", "")).strip()
+        if m_content: # Drops empty database slots entirely to secure the inference block
+            api_messages.append({
+                "role": m.get("role", "user"),
+                "content": [{"type": "text", "text": m_content}]
+            })
 
-    # Append current payload node to the stack
+    # Append current payload block
     if image_b64_payload:
         content_block = [
             {"type": "text", "text": str(current_prompt)},
