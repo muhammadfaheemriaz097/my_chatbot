@@ -40,8 +40,7 @@ def sync_identity():
             st.session_state.user_id = res.user.id
             meta = res.user.user_metadata or {}
             st.session_state.first_name = (
-                meta.get("full_name") or meta.get("first_name")
-                or res.user.email.split("@")[0]
+                meta.get("full_name") or email.split("@")[0]
             )
     except Exception:
         pass
@@ -491,9 +490,9 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     contents.append(types.Content(role="user", parts=current_parts))
 
     try:
-        # Generate prediction content via production-grade client engine
+        # Generate prediction content via stable fallback client engine
         response = client.models.generate_content(
-            model="gemini-2.5-flash", # Updated permanent production naming endpoint mapping
+            model="gemini-1.5-flash", # Stable production model tier configuration
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=(
