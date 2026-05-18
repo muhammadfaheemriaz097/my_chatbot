@@ -1,6 +1,6 @@
 streamlit
-groq
 supabase
 requests
 PyPDF2
+google-generativeai
 
