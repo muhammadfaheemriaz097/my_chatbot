@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import PyPDF2
-import base64
 from supabase import create_client
 
 # ── 1. DATABASE INIT ──────────────────────────────────────────────────────────
@@ -19,7 +18,7 @@ st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
 for k, v in {
     "authenticated": False, "messages": [], "first_name": "Engineer",
     "user_id": None, "show_tray": False, "active_upload_type": None,
-    "theme": "dark", "staged_context": "", "staged_image_b64": ""
+    "theme": "dark", "staged_context": ""
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -58,7 +57,7 @@ def load_chat_history():
         for row in rows:
             msg = row.get("message", {})
             if msg.get("role") == "user":
-                key = msg.get("content", "")[:40]
+                key = str(msg.get("content", ""))[:40]
                 if key not in seen:
                     seen.add(key)
                     result.append(row)
@@ -83,10 +82,9 @@ def load_full_conversation(up_to_id):
 def save_chat_message(role, content):
     if st.session_state.user_id:
         try:
-            txt_content = content if isinstance(content, str) else "[Staged Visual Asset]"
             supabase.table("chat_history").insert({
                 "user_id": st.session_state.user_id,
-                "message": {"role": role, "content": txt_content}
+                "message": {"role": role, "content": str(content)}
             }).execute()
         except:
             pass
@@ -123,7 +121,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── HIDE STREAMLIT CHROME AND DEVELOPER TOOLBAR COMPLETELY ── */
+/* ── HIDE STREAMLIT TOOLBAR AND LINK ELEMENTS COMPLETELY ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -141,7 +139,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo Formatting */
+/* Logo Graphic formatting layout */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -150,7 +148,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar UI Container */
+/* Sidebar UI Elements */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -161,7 +159,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* ── STABLE EXPANDED INPUT PILL CONFIGURATIONS ── */
+/* ── STABLE LOWER INPUT CHAT BAR METRICS ── */
 div[data-testid="stBottom"] > div {{
     background: transparent !important;
     padding: 8px 0 16px 0 !important;
@@ -198,7 +196,7 @@ div[data-testid="stChatInput"] button:hover {{
     background: #2a6dd9 !important;
 }}
 
-/* Options panel tray icon */
+/* Options tray alignment toggle elements */
 div[data-testid="stHorizontalBlock"] .tray-col button {{
     background: {T["pill_bg"]} !important;
     border: 1px solid {T["pill_bd"]} !important;
@@ -214,7 +212,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
     border-color: #4285f4 !important;
 }}
 
-/* Tray panel */
+/* Popup options layout configuration overlay sheets */
 .gemini-tray {{
     background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
     padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
@@ -240,7 +238,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 </style>""", unsafe_allow_html=True)
 
-# ── 9. SIDEBAR NAVIGATION ─────────────────────────────────────────────────────
+# ── 9. SIDEBAR NAVIGATION CONTROLS ────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>",
                 unsafe_allow_html=True)
@@ -263,7 +261,6 @@ with st.sidebar:
             st.session_state.show_tray = False
             st.session_state.active_upload_type = None
             st.session_state.staged_context = ""
-            st.session_state.staged_image_b64 = ""
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -276,7 +273,7 @@ with st.sidebar:
         if recent:
             for chat in recent:
                 msg     = chat.get("message", {})
-                preview = msg.get("content", "Chat")[:30] + "…"
+                preview = str(msg.get("content", "Chat"))[:30] + "…"
                 if st.button(f"💬 {preview}", key=f"h_{chat['id']}", use_container_width=True):
                     thread = load_full_conversation(chat["id"])
                     st.session_state.messages = thread if thread else [msg]
@@ -357,12 +354,12 @@ st.markdown(
     "<h1 class='logo-txt'>FEEMO AI</h1></div>",
     unsafe_allow_html=True)
 
-# Render chat history
+# Render chat history nodes
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+        st.markdown(str(msg.get("content", "")))
 
-# ── 12. TRAY ─────────────────────────────────────────────────────────────────
+# ── 12. TRAY PANEL OVERLAYS ───────────────────────────────────────────────────
 tray_label = "✖" if st.session_state.show_tray else "＋"
 col_tray, col_spacer = st.columns([1, 11])
 with col_tray:
@@ -374,7 +371,7 @@ with col_tray:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Tray panel
+# Tray popup drawer components
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
@@ -396,7 +393,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# File uploader panel modules
+# Dynamic contextual files uploader frames
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -420,9 +417,8 @@ if st.session_state.active_upload_type:
                 f = st.file_uploader("Image", type=["png","jpg","jpeg"], key="fu_photo")
                 if f:
                     st.image(f, width=200)
-                    bytes_data = f.getvalue()
-                    st.session_state.staged_image_b64 = base64.b64encode(bytes_data).decode("utf-8")
-                    st.success(f"Vision Asset Processed: {f.name}")
+                    st.session_state.staged_context += f"\n[Image Attachment Asset: {f.name}]"
+                    st.success(f"Visual File Staged: {f.name}")
             elif atype == "code":
                 f = st.file_uploader("Code / Data file",
                                      type=["txt","py","csv","json"], key="fu_code")
@@ -433,14 +429,11 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 13. CHAT INPUT ────────────────────────────────────────────────────────────
+# ── 13. NATIVE STABLE CHAT INPUT ENTRY ────────────────────────────────────────
 prompt = st.chat_input("Ask Feemo AI anything...")
 
 # ── 14. PROCESS PROMPT ───────────────────────────────────────────────────────
 if prompt and prompt.strip():
-    # Capture structural multi-modal parameters cleanly
-    st.session_state["active_image_payload"] = st.session_state.staged_image_b64
-    
     full_payload = prompt.strip()
     if st.session_state.staged_context:
         full_payload = f"{full_payload}\n\n{st.session_state.staged_context}"
@@ -452,41 +445,20 @@ if prompt and prompt.strip():
     st.session_state.show_tray           = False
     st.session_state.active_upload_type = None
     st.session_state.staged_context    = ""
-    st.session_state.staged_image_b64  = ""
     st.rerun()
 
-# ── 15. DYNAMIC MODEL MULTI-MODAL ROUTER INFERENCE ───────────────────────────
+# ── 15. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
 
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
-    image_b64_payload = st.session_state.get("active_image_payload", "")
 
-    # Historical formatting mapping
+    # Map conversation history strings safely
     api_messages = []
     for m in st.session_state.messages[:-1]:
-        api_messages.append({"role": m["role"], "content": m["content"]})
-    
-    # ── ROUTER LOGIC BRANCHING ──
-    if image_b64_payload:
-        target_model = "llama-3.2-11b-vision-preview"
-        # Vision models require a structural list array format instead of a plain string
-        api_messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": current_prompt},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{image_b64_payload}"
-                    }
-                }
-            ]
-        })
-    else:
-        target_model = "llama-3.3-70b-versatile"
-        api_messages.append({"role": "user", "content": current_prompt})
+        api_messages.append({"role": m["role"], "content": str(m.get("content", ""))})
+    api_messages.append({"role": "user", "content": str(current_prompt)})
 
     try:
         res = requests.post(
@@ -496,9 +468,9 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 "Content-Type": "application/json"
             },
             json={
-                "model": target_model,
+                "model": "llama-3.3-70b-versatile",
                 "messages": [
-                    {"role": "system", "content": f"You are Feemo AI, a helpful multi-modal assistant to {st.session_state.first_name}."}
+                    {"role": "system", "content": f"You are Feemo AI, a helpful text assistant to {st.session_state.first_name}."}
                 ] + api_messages,
                 "max_tokens": 1000
             }
@@ -510,8 +482,8 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             st.session_state.messages.append({"role": "assistant", "content": reply})
             save_chat_message("assistant", reply)
             
-            if "active_payload" in st.session_state: del st.session_state["active_payload"]
-            if "active_image_payload" in st.session_state: del st.session_state["active_image_payload"]
+            if "active_payload" in st.session_state: 
+                del st.session_state["active_payload"]
             st.rerun()
         else:
             ph.empty()
