@@ -144,7 +144,7 @@ header[data-testid="stHeader"] {{
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
 /* Logo */
-.logo-wrap {{ display:flex; justifycontent:center; align-items:center; margin-bottom:36px; }}
+.logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
     background:linear-gradient(90deg,#4285f4,#9b72cb,#d96570,#f4af45);
@@ -469,29 +469,36 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
     contents = []
     
-    # Process historical turns safely and drop bad model path values out of system strings
+    # CRITICAL SANITIZATION FIX: Strip out all historic database content corruption loops
     for m in st.session_state.messages[:-1]:
         role_label = "user" if m.get("role") == "user" else "model"
-        raw_msg = str(m.get("content", ""))
-        if "models/" not in raw_msg:
-            contents.append(
-                types.Content(
-                    role=role_label,
-                    parts=[types.Part.from_text(text=raw_msg)]
-                )
+        raw_msg = str(m.get("content", "")).strip()
+        
+        # Completely skip historical blocks containing old API error path markers
+        if not raw_msg or "models/" in raw_msg or "Execution Failure" in raw_msg or "Inference structure" in raw_msg:
+            continue
+            
+        contents.append(
+            types.Content(
+                role=role_label,
+                parts=[types.Part.from_text(text=raw_msg)]
             )
+        )
 
+    # Build current multi-modal parameters explicitly 
     current_parts = []
     if img_bytes:
         current_parts.append(
             types.Part.from_bytes(data=img_bytes, mime_type=img_mime)
         )
     
-    current_parts.append(types.Part.from_text(text=str(current_prompt)))
+    # Ensure current user node does not pass corrupted tracking markers
+    clean_current_prompt = str(current_prompt).replace("models/gemini-1.5-flash", "the requested model")
+    current_parts.append(types.Part.from_text(text=clean_current_prompt))
     contents.append(types.Content(role="user", parts=current_parts))
 
     try:
-        # HARD SANITIZED MODEL KEY CALL
+        # Run content generation directly against the clean raw string mapping
         response = client.models.generate_content(
             model="gemini-1.5-flash",
             contents=contents,
