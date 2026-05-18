@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import PyPDF2
+import base64
 from supabase import create_client
 
 # ── 1. DATABASE INIT ──────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
 for k, v in {
     "authenticated": False, "messages": [], "first_name": "Engineer",
     "user_id": None, "show_tray": False, "active_upload_type": None,
-    "theme": "dark", "staged_context": ""
+    "theme": "dark", "staged_context": "", "staged_image_b64": ""
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -82,9 +83,11 @@ def load_full_conversation(up_to_id):
 def save_chat_message(role, content):
     if st.session_state.user_id:
         try:
+            # Save standard conversational string to keep table schema clean
+            txt_content = content if isinstance(content, str) else "[Image Shared Asset]"
             supabase.table("chat_history").insert({
                 "user_id": st.session_state.user_id,
-                "message": {"role": role, "content": content}
+                "message": {"role": role, "content": txt_content}
             }).execute()
         except:
             pass
@@ -117,11 +120,11 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS OVERRIDES (TARGETED TO RESTORE SIDEBAR) ─────────────────────
+# ── 8. GLOBAL CSS ─────────────────────────────────────────────────────────────
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* TARGETED HIDER: ONLY hides the GitHub icon and developer menu dropdown */
+/* Hide upper toolbar elements completely */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -132,7 +135,6 @@ footer {{
     visibility: hidden !important; 
 }}
 
-/* Leave header background completely clear to keep your sidebar button working */
 header[data-testid="stHeader"] {{
     background: transparent !important;
 }}
@@ -140,7 +142,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo */
+/* Logo Layout */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -149,7 +151,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar Container elements */
+/* Sidebar Frame */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -160,7 +162,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* REPLICATED SINGLE-ROW INPUT STYLES */
+/* Pill chat layouts */
 div[data-testid="stBottom"] > div {{
     background: transparent !important;
     padding: 8px 0 16px 0 !important;
@@ -197,7 +199,7 @@ div[data-testid="stChatInput"] button:hover {{
     background: #2a6dd9 !important;
 }}
 
-/* Tray toggle button */
+/* Tray controller asset formatting */
 div[data-testid="stHorizontalBlock"] .tray-col button {{
     background: {T["pill_bg"]} !important;
     border: 1px solid {T["pill_bd"]} !important;
@@ -213,7 +215,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
     border-color: #4285f4 !important;
 }}
 
-/* Tray panel overlay elements */
+/* Floating drawer tray metrics */
 .gemini-tray {{
     background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
     padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
@@ -224,7 +226,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 .gemini-tray-divider {{ height:1px; background:{T["pop_bd"]}; margin:4px 0; }}
 
-/* Sidebar button updates */
+/* Sidebar button configurations */
 .new-chat-btn button {{
     background:linear-gradient(135deg,#4285f4,#9b72cb) !important;
     border:none !important; border-radius:12px !important;
@@ -262,6 +264,7 @@ with st.sidebar:
             st.session_state.show_tray = False
             st.session_state.active_upload_type = None
             st.session_state.staged_context = ""
+            st.session_state.staged_image_b64 = ""
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -394,7 +397,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# File uploader panel
+# File uploader panel with Base64 Conversion Pipeline
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -418,8 +421,10 @@ if st.session_state.active_upload_type:
                 f = st.file_uploader("Image", type=["png","jpg","jpeg"], key="fu_photo")
                 if f:
                     st.image(f, width=200)
-                    st.session_state.staged_context += f"\n[Image: {f.name}]"
-                    st.success(f"Vision Asset Staged: {f.name}")
+                    # Pipeline binary data into an ASCII string for API delivery
+                    bytes_data = f.getvalue()
+                    st.session_state.staged_image_b64 = base64.b64encode(bytes_data).decode("utf-8")
+                    st.success(f"Vision Asset Staged and Processed: {f.name}")
             elif atype == "code":
                 f = st.file_uploader("Code / Data file",
                                      type=["txt","py","csv","json"], key="fu_code")
@@ -435,29 +440,54 @@ prompt = st.chat_input("Ask Feemo AI anything...")
 
 # ── 14. PROCESS PROMPT ───────────────────────────────────────────────────────
 if prompt and prompt.strip():
+    # If an image has been staged, we temporarily cache the base64 pointer to pass to vision
+    st.session_state["active_image_payload"] = st.session_state.staged_image_b64
+    
     full_payload = prompt.strip()
     if st.session_state.staged_context:
         full_payload = f"{full_payload}\n\n{st.session_state.staged_context}"
 
     st.session_state.messages.append({"role": "user", "content": prompt.strip()})
     save_chat_message("user", prompt.strip())
+    
     st.session_state["active_payload"] = full_payload
     st.session_state.show_tray           = False
     st.session_state.active_upload_type = None
     st.session_state.staged_context    = ""
+    st.session_state.staged_image_b64  = ""
     st.rerun()
 
-# ── 15. AI RESPONSE ───────────────────────────────────────────────────────────
+# ── 15. MULTI-MODAL AI VISION RESPONSE INFERENCE ──────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
 
-    current_prompt = st.session_state.get(
-        "active_payload", st.session_state.messages[-1]["content"])
+    current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
+    image_b64_payload = st.session_state.get("active_image_payload", "")
 
-    api_messages = [{"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[:-1]]
-    api_messages.append({"role": "user", "content": current_prompt})
+    # Historical thread compiling
+    api_messages = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[:-1]]
+    
+    # ── VISION ROUTER CONDITION ──
+    if image_b64_payload:
+        # Dynamic execution branch matching multi-modal payload data blocks
+        target_model = "llama-3.2-11b-vision-preview"
+        api_messages.append({
+            "role": "user",
+            "content": [
+                {"type": "text", "text": current_prompt},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{image_b64_payload}"
+                    }
+                }
+            ]
+        })
+    else:
+        # Default fallback to your standard text-only model pipeline
+        target_model = "llama-3.3-70b-versatile"
+        api_messages.append({"role": "user", "content": current_prompt})
 
     try:
         res = requests.post(
@@ -467,11 +497,9 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama-3.3-70b-versatile",
+                "model": target_model,
                 "messages": [
-                    {"role": "system",
-                     "content": (f"You are Feemo AI, a helpful assistant "
-                                 f"to {st.session_state.first_name}.")}
+                    {"role": "system", "content": f"You are Feemo AI, a highly capable multi-modal assistant to {st.session_state.first_name}."}
                 ] + api_messages,
                 "max_tokens": 1000
             }
@@ -482,8 +510,10 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             ph.empty()
             st.session_state.messages.append({"role": "assistant", "content": reply})
             save_chat_message("assistant", reply)
-            if "active_payload" in st.session_state:
-                del st.session_state["active_payload"]
+            
+            # Clear multi-modal execution memory slots
+            if "active_payload" in st.session_state: del st.session_state["active_payload"]
+            if "active_image_payload" in st.session_state: del st.session_state["active_image_payload"]
             st.rerun()
         else:
             ph.empty()
