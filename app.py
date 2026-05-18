@@ -415,7 +415,7 @@ if st.session_state.active_upload_type:
                     try:
                         reader = PyPDF2.PdfReader(f)
                         txt = "".join(p.extract_text() or "" for p in reader.pages[:10])
-                        st.session_state.staged_context += f"\n[DOCUMENT LAYER - FILE: {f.name}]:\n{txt[:4000]}"
+                        st.session_state.staged_context += f"\n[DOCUMENT LAYER]:\n{txt[:4000]}"
                         st.success(f"PDF context staged successfully: {f.name}")
                     except: st.error("Could not parse PDF.")
             elif atype == "photo":
@@ -431,7 +431,7 @@ if st.session_state.active_upload_type:
                 if f:
                     try:
                         st.session_state.staged_context += (
-                            f"\n[CODE ANALYSIS BLOCK - FILE: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
+                            f"\n[CODE BLOCK]:\n{f.read().decode('utf-8')[:3000]}")
                         st.success(f"Source context staged successfully: {f.name}")
                     except: st.error("Could not decode file.")
 
@@ -458,7 +458,7 @@ if prompt and prompt.strip():
     st.session_state.staged_image_mime  = ""
     st.rerun()
 
-# ── 15. NATIVE PRO-SDK MULTI-MODAL INFERENCE ENGINE ────────────────────────────
+# ── 15. ZERO-HISTORY SECURE INFERENCE ENGINE ─────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
@@ -467,38 +467,19 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     img_bytes = st.session_state.get("active_img_bytes", None)
     img_mime = st.session_state.get("active_img_mime", "")
 
+    # FORCE-FLUSH HISTORY INTERFERENCE TO BYPASS 404 DATA CORRUPTION
     contents = []
-    
-    # CRITICAL SANITIZATION FIX: Strip out all historic database content corruption loops
-    for m in st.session_state.messages[:-1]:
-        role_label = "user" if m.get("role") == "user" else "model"
-        raw_msg = str(m.get("content", "")).strip()
-        
-        # Completely skip historical blocks containing old API error path markers
-        if not raw_msg or "models/" in raw_msg or "Execution Failure" in raw_msg or "Inference structure" in raw_msg:
-            continue
-            
-        contents.append(
-            types.Content(
-                role=role_label,
-                parts=[types.Part.from_text(text=raw_msg)]
-            )
-        )
 
-    # Build current multi-modal parameters explicitly 
     current_parts = []
     if img_bytes:
         current_parts.append(
             types.Part.from_bytes(data=img_bytes, mime_type=img_mime)
         )
     
-    # Ensure current user node does not pass corrupted tracking markers
-    clean_current_prompt = str(current_prompt).replace("models/gemini-1.5-flash", "the requested model")
-    current_parts.append(types.Part.from_text(text=clean_current_prompt))
+    current_parts.append(types.Part.from_text(text=str(current_prompt)))
     contents.append(types.Content(role="user", parts=current_parts))
 
     try:
-        # Run content generation directly against the clean raw string mapping
         response = client.models.generate_content(
             model="gemini-1.5-flash",
             contents=contents,
