@@ -1,12 +1,14 @@
 import streamlit as st
 import PyPDF2
 from supabase import create_client
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
-# ── 1. DATABASE AND GEMINI INIT ────────────────────────────────────────────────
+# ── 1. DATABASE AND GEMINI PRO-SDK INIT ────────────────────────────────────────
 try:
     supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    # Initialize the official modern client object directly
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 except Exception as e:
     st.error(f"Configuration Error: {e}")
     st.stop()
@@ -123,7 +125,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── HIDE UPPER TOOLBAR ELEMENTS COMPLETELY ── */
+/* Hide toolbar elements completely */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -324,7 +326,7 @@ if not st.session_state.authenticated:
                         st.session_state.authenticated = True
                         st.session_state.user_id       = r.user.id
                         meta = r.user.user_metadata or {}
-                        st.session_state.first_name    = (
+                        st.session_state.first_name = (
                             meta.get("full_name") or email.split("@")[0])
                         st.rerun()
                 except: st.error("Invalid email or password.")
@@ -456,7 +458,7 @@ if prompt and prompt.strip():
     st.session_state.staged_image_mime  = ""
     st.rerun()
 
-# ── 15. NATIVE GEMINI MULTI-MODAL INFERENCE ENGINE ────────────────────────────
+# ── 15. NATIVE PRO-SDK MULTI-MODAL INFERENCE ENGINE ────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
@@ -465,29 +467,44 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     img_bytes = st.session_state.get("active_img_bytes", None)
     img_mime = st.session_state.get("active_img_mime", "")
 
+    # Clean multi-modal chat content structure array mapping
     contents = []
+    
+    # Process historical turns safely
     for m in st.session_state.messages[:-1]:
         role_label = "user" if m.get("role") == "user" else "model"
-        contents.append({"role": role_label, "parts": [str(m.get("content", ""))]})
-
-    current_parts = []
-    if img_bytes:
-        current_parts.append({"mime_type": img_mime, "data": img_bytes})
-    
-    current_parts.append(str(current_prompt))
-    contents.append({"role": "user", "parts": current_parts})
-
-    try:
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            system_instruction=(
-                f"You are Feemo AI, a brilliant multi-modal AI and Computer Vision Engineer assistant to {st.session_state.first_name}. "
-                f"You can analyze text instructions, code screenshots, mockups, mathematical matrices, and visual documents down to the pixel level. "
-                f"Generate clean, functional source code architectures, CSS grids, database schemas, and perfect layout blueprints as requested."
+        contents.append(
+            types.Content(
+                role=role_label,
+                parts=[types.Part.from_text(text=str(m.get("content", "")))]
             )
         )
 
-        response = model.generate_content(contents)
+    # Compile modern multimodal part modules cleanly
+    current_parts = []
+    if img_bytes:
+        current_parts.append(
+            types.Part.from_bytes(data=img_bytes, mime_type=img_mime)
+        )
+    
+    current_parts.append(types.Part.from_text(text=str(current_prompt)))
+    contents.append(types.Content(role="user", parts=current_parts))
+
+    try:
+        # Generate prediction content via production-grade client engine
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=(
+                    f"You are Feemo AI, a brilliant multi-modal assistant to {st.session_state.first_name}. "
+                    f"You have deep engineering context awareness. When text instructions, code scripts, data metrics, "
+                    f"or raw image files are provided, analyze them completely to generate comprehensive code architectures, "
+                    f"CSS layout properties, or precise functional debugging solutions requested."
+                ),
+                max_output_tokens=1500
+            )
+        )
         reply = response.text
 
         ph.empty()
