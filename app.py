@@ -493,7 +493,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     try:
         # Generate prediction content via production-grade client engine
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash", # Updated permanent production naming endpoint mapping
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=(
