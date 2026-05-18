@@ -1,12 +1,12 @@
 import streamlit as st
-import requests
 import PyPDF2
-import base64
 from supabase import create_client
+import google.generativeai as genai
 
-# ── 1. DATABASE INIT ──────────────────────────────────────────────────────────
+# ── 1. DATABASE AND GEMINI INIT ────────────────────────────────────────────────
 try:
     supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 except Exception as e:
     st.error(f"Configuration Error: {e}")
     st.stop()
@@ -19,7 +19,7 @@ st.set_page_config(page_title="Feemo AI", page_icon="✦", layout="wide",
 for k, v in {
     "authenticated": False, "messages": [], "first_name": "Engineer",
     "user_id": None, "show_tray": False, "active_upload_type": None,
-    "theme": "dark", "staged_context": "", "staged_image_b64": ""
+    "theme": "dark", "staged_context": "", "staged_image_bytes": None, "staged_image_mime": ""
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -83,7 +83,7 @@ def load_full_conversation(up_to_id):
 def save_chat_message(role, content):
     if st.session_state.user_id:
         try:
-            txt_content = content if isinstance(content, str) else "[Shared Visual Asset Data]"
+            txt_content = content if isinstance(content, str) else "[Shared Media Asset]"
             supabase.table("chat_history").insert({
                 "user_id": st.session_state.user_id,
                 "message": {"role": role, "content": str(txt_content)}
@@ -91,7 +91,7 @@ def save_chat_message(role, content):
         except:
             pass
 
-# ── 6. THEME ──────────────────────────────────────────────────────────────────
+# ── 6. THEME CONFIGURATION ────────────────────────────────────────────────────
 IS_DARK = st.session_state.theme == "dark"
 T = {
     "bg":      "#0e0e10" if IS_DARK else "#f4f4f6",
@@ -123,7 +123,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── HIDE STREAMLIT BRANDING AND UPPER TOOLBAR COMPLETELY ── */
+/* ── HIDE UPPER TOOLBAR ELEMENTS COMPLETELY ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -141,7 +141,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo Graphic design styling */
+/* Logo */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -150,7 +150,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar UI Panel Frame */
+/* Sidebar UI Container */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -161,7 +161,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* Input bar alignment overrides */
+/* Native input design overrides */
 div[data-testid="stBottom"] > div {{
     background: transparent !important;
     padding: 8px 0 16px 0 !important;
@@ -198,7 +198,7 @@ div[data-testid="stChatInput"] button:hover {{
     background: #2a6dd9 !important;
 }}
 
-/* Options panel tray button layouts */
+/* Options panel tray icon */
 div[data-testid="stHorizontalBlock"] .tray-col button {{
     background: {T["pill_bg"]} !important;
     border: 1px solid {T["pill_bd"]} !important;
@@ -214,7 +214,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
     border-color: #4285f4 !important;
 }}
 
-/* Floating tray container popover sheets */
+/* Tray panel overlay elements */
 .gemini-tray {{
     background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
     padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
@@ -225,7 +225,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 .gemini-tray-divider {{ height:1px; background:{T["pop_bd"]}; margin:4px 0; }}
 
-/* Sidebar button mappings */
+/* Sidebar button configurations */
 .new-chat-btn button {{
     background:linear-gradient(135deg,#4285f4,#9b72cb) !important;
     border:none !important; border-radius:12px !important;
@@ -263,7 +263,8 @@ with st.sidebar:
             st.session_state.show_tray = False
             st.session_state.active_upload_type = None
             st.session_state.staged_context = ""
-            st.session_state.staged_image_b64 = ""
+            st.session_state.staged_image_bytes = None
+            st.session_state.staged_image_mime = ""
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -374,7 +375,6 @@ with col_tray:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Popup tray drawer choices
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
@@ -396,7 +396,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# Context asset parsing drops
+# Dynamic contextual files uploader frames
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -413,24 +413,24 @@ if st.session_state.active_upload_type:
                     try:
                         reader = PyPDF2.PdfReader(f)
                         txt = "".join(p.extract_text() or "" for p in reader.pages[:10])
-                        st.session_state.staged_context += f"\n[DOCUMENT TEXT CONTENT LAYERS - FILE: {f.name}]:\n{txt[:4000]}"
-                        st.success(f"Document Text Context Staged: {f.name}")
+                        st.session_state.staged_context += f"\n[DOCUMENT LAYER - FILE: {f.name}]:\n{txt[:4000]}"
+                        st.success(f"PDF context staged successfully: {f.name}")
                     except: st.error("Could not parse PDF.")
             elif atype == "photo":
                 f = st.file_uploader("Image Assets", type=["png","jpg","jpeg"], key="fu_photo")
                 if f:
                     st.image(f, width=200)
-                    bytes_data = f.getvalue()
-                    st.session_state.staged_image_b64 = base64.b64encode(bytes_data).decode("utf-8")
-                    st.success(f"Image Pixel Context Processed and Staged: {f.name}")
+                    st.session_state.staged_image_bytes = f.getvalue()
+                    st.session_state.staged_image_mime = f.type
+                    st.success(f"Image asset processed successfully: {f.name}")
             elif atype == "code":
                 f = st.file_uploader("Code / Data file",
                                      type=["txt","py","csv","json"], key="fu_code")
                 if f:
                     try:
                         st.session_state.staged_context += (
-                            f"\n[SOURCE CODE ANALYSIS LAYER - FILE: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
-                        st.success(f"Source Code Context Staged: {f.name}")
+                            f"\n[CODE ANALYSIS BLOCK - FILE: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
+                        st.success(f"Source context staged successfully: {f.name}")
                     except: st.error("Could not decode file.")
 
 # ── 13. CHAT INPUT BAR ─────────────────────────────────────────────────────────
@@ -438,7 +438,8 @@ prompt = st.chat_input("Ask Feemo AI anything...")
 
 # ── 14. PROCESS PROMPT AND STRUCTURE ASSIGNMENT ────────────────────────────────
 if prompt and prompt.strip():
-    st.session_state["active_image_payload"] = st.session_state.staged_image_b64
+    st.session_state["active_img_bytes"] = st.session_state.staged_image_bytes
+    st.session_state["active_img_mime"] = st.session_state.staged_image_mime
     
     full_payload = prompt.strip()
     if st.session_state.staged_context:
@@ -451,76 +452,53 @@ if prompt and prompt.strip():
     st.session_state.show_tray           = False
     st.session_state.active_upload_type = None
     st.session_state.staged_context    = ""
-    st.session_state.staged_image_b64  = ""
+    st.session_state.staged_image_bytes = None
+    st.session_state.staged_image_mime  = ""
     st.rerun()
 
-# ── 15. SANITIZED VISION INFERENCE LAYER ──────────────────────────────────────
+# ── 15. NATIVE GEMINI MULTI-MODAL INFERENCE ENGINE ────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
 
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
-    image_b64_payload = st.session_state.get("active_image_payload", "")
+    img_bytes = st.session_state.get("active_img_bytes", None)
+    img_mime = st.session_state.get("active_img_mime", "")
 
-    # Clean and explicitly filter out past history entries that are empty or broken
-    api_messages = []
+    contents = []
     for m in st.session_state.messages[:-1]:
-        m_content = str(m.get("content", "")).strip()
-        if m_content: # Drops empty database slots entirely to secure the inference block
-            api_messages.append({
-                "role": m.get("role", "user"),
-                "content": [{"type": "text", "text": m_content}]
-            })
+        role_label = "user" if m.get("role") == "user" else "model"
+        contents.append({"role": role_label, "parts": [str(m.get("content", ""))]})
 
-    # Append current payload block
-    if image_b64_payload:
-        content_block = [
-            {"type": "text", "text": str(current_prompt)},
-            {
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{image_b64_payload}"}
-            }
-        ]
-    else:
-        content_block = [{"type": "text", "text": str(current_prompt)}]
-
-    api_messages.append({"role": "user", "content": content_block})
+    current_parts = []
+    if img_bytes:
+        current_parts.append({"mime_type": img_mime, "data": img_bytes})
+    
+    current_parts.append(str(current_prompt))
+    contents.append({"role": "user", "parts": current_parts})
 
     try:
-        res = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": "Bearer " + st.secrets["GROQ_API_KEY"],
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.2-11b-vision-preview", 
-                "messages": [
-                    {
-                        "role": "system", 
-                        "content": (
-                            f"You are Feemo AI, a brilliant multi-modal computer vision and engineering assistant to {st.session_state.first_name}. "
-                            f"You have native, expert computer vision, OCR text extraction, script reading, and structural layout generation capabilities. "
-                            f"Analyse text inputs, source documents, raw tables, and user uploaded image pixels completely to fulfill instructions perfectly."
-                        )
-                    }
-                ] + api_messages,
-                "max_tokens": 1200
-            }
-        ).json()
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=(
+                f"You are Feemo AI, a brilliant multi-modal AI and Computer Vision Engineer assistant to {st.session_state.first_name}. "
+                f"You can analyze text instructions, code screenshots, mockups, mathematical matrices, and visual documents down to the pixel level. "
+                f"Generate clean, functional source code architectures, CSS grids, database schemas, and perfect layout blueprints as requested."
+            )
+        )
 
-        if "choices" in res:
-            reply = res["choices"][0]["message"]["content"]
-            ph.empty()
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-            save_chat_message("assistant", reply)
-            
-            if "active_payload" in st.session_state: del st.session_state["active_payload"]
-            if "active_image_payload" in st.session_state: del st.session_state["active_image_payload"]
-            st.rerun()
-        else:
-            ph.empty()
-            st.error("Inference structure failure.")
-    except Exception as ex:
+        response = model.generate_content(contents)
+        reply = response.text
+
         ph.empty()
-        st.error(f"API execution failure: {ex}")
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+        save_chat_message("assistant", reply)
+        
+        if "active_payload" in st.session_state: del st.session_state["active_payload"]
+        if "active_img_bytes" in st.session_state: del st.session_state["active_img_bytes"]
+        if "active_img_mime" in st.session_state: del st.session_state["active_img_mime"]
+        st.rerun()
+
+    except Exception as e:
+        ph.empty()
+        st.error(f"Gemini API Execution Failure: {e}")
