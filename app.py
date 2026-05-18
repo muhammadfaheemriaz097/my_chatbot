@@ -83,8 +83,7 @@ def load_full_conversation(up_to_id):
 def save_chat_message(role, content):
     if st.session_state.user_id:
         try:
-            # Save standard conversational string to keep table schema clean
-            txt_content = content if isinstance(content, str) else "[Image Shared Asset]"
+            txt_content = content if isinstance(content, str) else "[Staged Visual Asset]"
             supabase.table("chat_history").insert({
                 "user_id": st.session_state.user_id,
                 "message": {"role": role, "content": txt_content}
@@ -120,11 +119,11 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS ─────────────────────────────────────────────────────────────
+# ── 8. GLOBAL CSS OVERRIDES ───────────────────────────────────────────────────
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Hide upper toolbar elements completely */
+/* ── HIDE STREAMLIT CHROME AND DEVELOPER TOOLBAR COMPLETELY ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -142,7 +141,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo Layout */
+/* Logo Formatting */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -151,7 +150,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar Frame */
+/* Sidebar UI Container */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -162,7 +161,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* Pill chat layouts */
+/* ── STABLE EXPANDED INPUT PILL CONFIGURATIONS ── */
 div[data-testid="stBottom"] > div {{
     background: transparent !important;
     padding: 8px 0 16px 0 !important;
@@ -199,7 +198,7 @@ div[data-testid="stChatInput"] button:hover {{
     background: #2a6dd9 !important;
 }}
 
-/* Tray controller asset formatting */
+/* Options panel tray icon */
 div[data-testid="stHorizontalBlock"] .tray-col button {{
     background: {T["pill_bg"]} !important;
     border: 1px solid {T["pill_bd"]} !important;
@@ -215,7 +214,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
     border-color: #4285f4 !important;
 }}
 
-/* Floating drawer tray metrics */
+/* Tray panel */
 .gemini-tray {{
     background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
     padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
@@ -226,7 +225,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 .gemini-tray-divider {{ height:1px; background:{T["pop_bd"]}; margin:4px 0; }}
 
-/* Sidebar button configurations */
+/* Sidebar button properties */
 .new-chat-btn button {{
     background:linear-gradient(135deg,#4285f4,#9b72cb) !important;
     border:none !important; border-radius:12px !important;
@@ -241,7 +240,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 </style>""", unsafe_allow_html=True)
 
-# ── 9. SIDEBAR ────────────────────────────────────────────────────────────────
+# ── 9. SIDEBAR NAVIGATION ─────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>",
                 unsafe_allow_html=True)
@@ -397,7 +396,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# File uploader panel with Base64 Conversion Pipeline
+# File uploader panel modules
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -421,10 +420,9 @@ if st.session_state.active_upload_type:
                 f = st.file_uploader("Image", type=["png","jpg","jpeg"], key="fu_photo")
                 if f:
                     st.image(f, width=200)
-                    # Pipeline binary data into an ASCII string for API delivery
                     bytes_data = f.getvalue()
                     st.session_state.staged_image_b64 = base64.b64encode(bytes_data).decode("utf-8")
-                    st.success(f"Vision Asset Staged and Processed: {f.name}")
+                    st.success(f"Vision Asset Processed: {f.name}")
             elif atype == "code":
                 f = st.file_uploader("Code / Data file",
                                      type=["txt","py","csv","json"], key="fu_code")
@@ -440,7 +438,7 @@ prompt = st.chat_input("Ask Feemo AI anything...")
 
 # ── 14. PROCESS PROMPT ───────────────────────────────────────────────────────
 if prompt and prompt.strip():
-    # If an image has been staged, we temporarily cache the base64 pointer to pass to vision
+    # Capture structural multi-modal parameters cleanly
     st.session_state["active_image_payload"] = st.session_state.staged_image_b64
     
     full_payload = prompt.strip()
@@ -457,7 +455,7 @@ if prompt and prompt.strip():
     st.session_state.staged_image_b64  = ""
     st.rerun()
 
-# ── 15. MULTI-MODAL AI VISION RESPONSE INFERENCE ──────────────────────────────
+# ── 15. DYNAMIC MODEL MULTI-MODAL ROUTER INFERENCE ───────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
@@ -465,13 +463,15 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
     image_b64_payload = st.session_state.get("active_image_payload", "")
 
-    # Historical thread compiling
-    api_messages = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[:-1]]
+    # Historical formatting mapping
+    api_messages = []
+    for m in st.session_state.messages[:-1]:
+        api_messages.append({"role": m["role"], "content": m["content"]})
     
-    # ── VISION ROUTER CONDITION ──
+    # ── ROUTER LOGIC BRANCHING ──
     if image_b64_payload:
-        # Dynamic execution branch matching multi-modal payload data blocks
         target_model = "llama-3.2-11b-vision-preview"
+        # Vision models require a structural list array format instead of a plain string
         api_messages.append({
             "role": "user",
             "content": [
@@ -485,7 +485,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             ]
         })
     else:
-        # Default fallback to your standard text-only model pipeline
         target_model = "llama-3.3-70b-versatile"
         api_messages.append({"role": "user", "content": current_prompt})
 
@@ -499,7 +498,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             json={
                 "model": target_model,
                 "messages": [
-                    {"role": "system", "content": f"You are Feemo AI, a highly capable multi-modal assistant to {st.session_state.first_name}."}
+                    {"role": "system", "content": f"You are Feemo AI, a helpful multi-modal assistant to {st.session_state.first_name}."}
                 ] + api_messages,
                 "max_tokens": 1000
             }
@@ -511,7 +510,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             st.session_state.messages.append({"role": "assistant", "content": reply})
             save_chat_message("assistant", reply)
             
-            # Clear multi-modal execution memory slots
             if "active_payload" in st.session_state: del st.session_state["active_payload"]
             if "active_image_payload" in st.session_state: del st.session_state["active_image_payload"]
             st.rerun()
