@@ -7,7 +7,6 @@ from google.genai import types
 # ── 1. DATABASE AND GEMINI PRO-SDK INIT ────────────────────────────────────────
 try:
     supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    # Initialize the official modern client object directly
     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 except Exception as e:
     st.error(f"Configuration Error: {e}")
@@ -39,8 +38,10 @@ def sync_identity():
             st.session_state.authenticated = True
             st.session_state.user_id = res.user.id
             meta = res.user.user_metadata or {}
+            # FIXED: Read safely from the verified response email attributes
             st.session_state.first_name = (
-                meta.get("full_name") or email.split("@")[0]
+                meta.get("full_name") or meta.get("first_name")
+                or res.user.email.split("@")[0]
             )
     except Exception:
         pass
@@ -315,18 +316,18 @@ if not st.session_state.authenticated:
         st.markdown("<p style='text-align:center;color:#888;margin:10px 0'>OR</p>",
                     unsafe_allow_html=True)
         with st.form("login_form"):
-            email    = st.text_input("Email")
-            password = st.text_input("Password", type="password")
+            email_in    = st.text_input("Email")
+            password_in = st.text_input("Password", type="password")
             if st.form_submit_button("LOGIN", use_container_width=True):
                 try:
                     r = supabase.auth.sign_in_with_password(
-                        {"email": email, "password": password})
+                        {"email": email_in, "password": password_in})
                     if r.user:
                         st.session_state.authenticated = True
                         st.session_state.user_id       = r.user.id
                         meta = r.user.user_metadata or {}
                         st.session_state.first_name = (
-                            meta.get("full_name") or email.split("@")[0])
+                            meta.get("full_name") or email_in.split("@")[0])
                         st.rerun()
                 except: st.error("Invalid email or password.")
 
@@ -466,10 +467,8 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     img_bytes = st.session_state.get("active_img_bytes", None)
     img_mime = st.session_state.get("active_img_mime", "")
 
-    # Clean multi-modal chat content structure array mapping
     contents = []
     
-    # Process historical turns safely
     for m in st.session_state.messages[:-1]:
         role_label = "user" if m.get("role") == "user" else "model"
         contents.append(
@@ -479,7 +478,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             )
         )
 
-    # Compile modern multimodal part modules cleanly
     current_parts = []
     if img_bytes:
         current_parts.append(
@@ -490,9 +488,8 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     contents.append(types.Content(role="user", parts=current_parts))
 
     try:
-        # Generate prediction content via stable fallback client engine
         response = client.models.generate_content(
-            model="gemini-1.5-flash", # Stable production model tier configuration
+            model="gemini-1.5-flash",
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=(
