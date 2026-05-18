@@ -117,11 +117,11 @@ TYPING_HTML = """
 <div class="ft"><span></span><span></span><span></span></div>
 """
 
-# ── 8. GLOBAL CSS ─────────────────────────────────────────────────────────────
+# ── 8. GLOBAL CSS OVERRIDES (TARGETED TO RESTORE SIDEBAR) ─────────────────────
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* Precision hide the deploy menu dropdown and development subtool bars */
+/* TARGETED HIDER: ONLY hides the GitHub icon and developer menu dropdown */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -132,7 +132,7 @@ footer {{
     visibility: hidden !important; 
 }}
 
-/* Leave the core base header element transparent to protect your sidebar toggle arrow */
+/* Leave header background completely clear to keep your sidebar button working */
 header[data-testid="stHeader"] {{
     background: transparent !important;
 }}
@@ -140,7 +140,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo Graphic CSS layout formatting */
+/* Logo */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -149,7 +149,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar layout tracking definitions */
+/* Sidebar Container elements */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -160,7 +160,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* ── REPLICATED SINGLE-ROW EXPANDED PILL SHAPING ── */
+/* REPLICATED SINGLE-ROW INPUT STYLES */
 div[data-testid="stBottom"] > div {{
     background: transparent !important;
     padding: 8px 0 16px 0 !important;
@@ -197,7 +197,7 @@ div[data-testid="stChatInput"] button:hover {{
     background: #2a6dd9 !important;
 }}
 
-/* Tray controller asset formatting */
+/* Tray toggle button */
 div[data-testid="stHorizontalBlock"] .tray-col button {{
     background: {T["pill_bg"]} !important;
     border: 1px solid {T["pill_bd"]} !important;
@@ -213,7 +213,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
     border-color: #4285f4 !important;
 }}
 
-/* Floating drawer tray metrics layout formatting sheet */
+/* Tray panel overlay elements */
 .gemini-tray {{
     background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
     padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
@@ -224,7 +224,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 .gemini-tray-divider {{ height:1px; background:{T["pop_bd"]}; margin:4px 0; }}
 
-/* Sidebar button configurations */
+/* Sidebar button updates */
 .new-chat-btn button {{
     background:linear-gradient(135deg,#4285f4,#9b72cb) !important;
     border:none !important; border-radius:12px !important;
@@ -355,12 +355,12 @@ st.markdown(
     "<h1 class='logo-txt'>FEEMO AI</h1></div>",
     unsafe_allow_html=True)
 
-# Render chat history nodes
+# Render chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# ── 12. TRAY PANEL MODULES ────────────────────────────────────────────────────
+# ── 12. TRAY ─────────────────────────────────────────────────────────────────
 tray_label = "✖" if st.session_state.show_tray else "＋"
 col_tray, col_spacer = st.columns([1, 11])
 with col_tray:
@@ -372,7 +372,7 @@ with col_tray:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Tray item selector drawer
+# Tray panel
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
@@ -394,7 +394,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# File context target upload targets
+# File uploader panel
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -430,7 +430,7 @@ if st.session_state.active_upload_type:
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 13. NATIVE CHAT INPUT ENTRY ───────────────────────────────────────────────
+# ── 13. CHAT INPUT ────────────────────────────────────────────────────────────
 prompt = st.chat_input("Ask Feemo AI anything...")
 
 # ── 14. PROCESS PROMPT ───────────────────────────────────────────────────────
