@@ -121,7 +121,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── HIDE STREAMLIT TOOLBAR AND LINK ELEMENTS COMPLETELY ── */
+/* ── HIDE TOOLBAR COMPONENT LAYOUTS COMPLETELY ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -139,7 +139,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo Graphic formatting layout */
+/* Logo Graphic metrics Layout */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -148,7 +148,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar UI Elements */
+/* Sidebar UI Container Setup */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -159,7 +159,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* ── STABLE LOWER INPUT CHAT BAR METRICS ── */
+/* Chat bottom input structure definitions */
 div[data-testid="stBottom"] > div {{
     background: transparent !important;
     padding: 8px 0 16px 0 !important;
@@ -196,7 +196,7 @@ div[data-testid="stChatInput"] button:hover {{
     background: #2a6dd9 !important;
 }}
 
-/* Options tray alignment toggle elements */
+/* Options panel tray icon toggle alignments */
 div[data-testid="stHorizontalBlock"] .tray-col button {{
     background: {T["pill_bg"]} !important;
     border: 1px solid {T["pill_bd"]} !important;
@@ -212,7 +212,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
     border-color: #4285f4 !important;
 }}
 
-/* Popup options layout configuration overlay sheets */
+/* Custom selection tray dropdown menu card metrics */
 .gemini-tray {{
     background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
     padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
@@ -238,7 +238,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 </style>""", unsafe_allow_html=True)
 
-# ── 9. SIDEBAR NAVIGATION CONTROLS ────────────────────────────────────────────
+# ── 9. SIDEBAR CONTROLS ───────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>",
                 unsafe_allow_html=True)
@@ -354,7 +354,7 @@ st.markdown(
     "<h1 class='logo-txt'>FEEMO AI</h1></div>",
     unsafe_allow_html=True)
 
-# Render chat history nodes
+# Render chat history logs safely
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(str(msg.get("content", "")))
@@ -371,7 +371,7 @@ with col_tray:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Tray popup drawer components
+# Tray options card overlay framework
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
@@ -393,7 +393,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# Dynamic contextual files uploader frames
+# Contextual attachment uploader panel components
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -410,14 +410,14 @@ if st.session_state.active_upload_type:
                     try:
                         reader = PyPDF2.PdfReader(f)
                         txt = "".join(p.extract_text() or "" for p in reader.pages[:10])
-                        st.session_state.staged_context += f"\n[PDF: {f.name}]:\n{txt[:5000]}"
+                        st.session_state.staged_context += f"\n[PDF DATA OVERLAY: {f.name}]:\n{txt[:4000]}"
                         st.success(f"Context Staged: {f.name}")
                     except: st.error("Could not parse PDF.")
             elif atype == "photo":
                 f = st.file_uploader("Image", type=["png","jpg","jpeg"], key="fu_photo")
                 if f:
                     st.image(f, width=200)
-                    st.session_state.staged_context += f"\n[Image Attachment Asset: {f.name}]"
+                    st.session_state.staged_context += f"\n[USER IMAGE PROVIDED ATTACHMENT: {f.name}]"
                     st.success(f"Visual File Staged: {f.name}")
             elif atype == "code":
                 f = st.file_uploader("Code / Data file",
@@ -425,18 +425,24 @@ if st.session_state.active_upload_type:
                 if f:
                     try:
                         st.session_state.staged_context += (
-                            f"\n[File: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
+                            f"\n[SOURCE CODE DATA OVERLAY: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
                         st.success(f"Source Code Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
-# ── 13. NATIVE STABLE CHAT INPUT ENTRY ────────────────────────────────────────
+# ── 13. NATIVE CHAT INPUT BAR ─────────────────────────────────────────────────
 prompt = st.chat_input("Ask Feemo AI anything...")
 
-# ── 14. PROCESS PROMPT ───────────────────────────────────────────────────────
+# ── 14. PROCESS PROMPT AND SYSTEM INTERCEPT ───────────────────────────────────
 if prompt and prompt.strip():
     full_payload = prompt.strip()
+    
+    # Secure systemic linkage injection so Groq reads contextual attachments flawlessly
     if st.session_state.staged_context:
-        full_payload = f"{full_payload}\n\n{st.session_state.staged_context}"
+        full_payload = (
+            f"Please process my core instruction matching this attached file context data layer.\n"
+            f"Core User Instruction: {prompt.strip()}\n\n"
+            f"Staged Context Data:\n{st.session_state.staged_context}"
+        )
 
     st.session_state.messages.append({"role": "user", "content": prompt.strip()})
     save_chat_message("user", prompt.strip())
@@ -447,14 +453,14 @@ if prompt and prompt.strip():
     st.session_state.staged_context    = ""
     st.rerun()
 
-# ── 15. AI RESPONSE INFERENCE ─────────────────────────────────────────────────
+# ── 15. AI RESPONSE INFERENCE LOOP ────────────────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
 
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
 
-    # Map conversation history strings safely
+    # Safe historical conversation context conversion tracking 
     api_messages = []
     for m in st.session_state.messages[:-1]:
         api_messages.append({"role": m["role"], "content": str(m.get("content", ""))})
@@ -470,9 +476,16 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
-                    {"role": "system", "content": f"You are Feemo AI, a helpful text assistant to {st.session_state.first_name}."}
+                    {
+                        "role": "system", 
+                        "content": (
+                            f"You are Feemo AI, a helpful, advanced assistant to {st.session_state.first_name}. "
+                            f"You have deep engineering context awareness. When text, files, code, or images "
+                            f"are shared, analyze the appended data layers carefully to fulfill instructions."
+                        )
+                    }
                 ] + api_messages,
-                "max_tokens": 1000
+                "max_tokens": 1200
             }
         ).json()
 
