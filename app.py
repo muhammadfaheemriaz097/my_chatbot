@@ -83,7 +83,7 @@ def load_full_conversation(up_to_id):
 def save_chat_message(role, content):
     if st.session_state.user_id:
         try:
-            txt_content = content if isinstance(content, str) else "[Visual Shared Asset]"
+            txt_content = content if isinstance(content, str) else "[Shared Visual Asset Data]"
             supabase.table("chat_history").insert({
                 "user_id": st.session_state.user_id,
                 "message": {"role": role, "content": str(txt_content)}
@@ -123,7 +123,7 @@ TYPING_HTML = """
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;800&display=swap');
 
-/* ── TARGETED TOOLBAR HIDER ── */
+/* ── HIDE STREAMLIT BRANDING AND UPPER TOOLBAR COMPLETELY ── */
 .stAppDeployDropdown,
 div[data-testid="stHeaderDeveloperTools"],
 div[data-testid="stStatusWidget"],
@@ -141,7 +141,7 @@ header[data-testid="stHeader"] {{
 .stApp {{ background:{T["bg"]}; color:{T["text"]}; font-family:'Inter',sans-serif; }}
 .block-container {{ max-width:860px; padding-top:2rem !important; margin:auto; }}
 
-/* Logo */
+/* Logo Graphic design styling */
 .logo-wrap {{ display:flex; justify-content:center; align-items:center; margin-bottom:36px; }}
 .logo-txt {{
     font-size:52px; font-weight:800; letter-spacing:-2px; margin:0;
@@ -150,7 +150,7 @@ header[data-testid="stHeader"] {{
 }}
 .logo-sym {{ font-size:42px; margin-right:14px; color:#4285f4; }}
 
-/* Sidebar UI Frame */
+/* Sidebar UI Panel Frame */
 section[data-testid="stSidebar"] {{
     background:{T["sb_bg"]} !important;
     border-right:1px solid {T["sb_bdr"]} !important;
@@ -161,7 +161,7 @@ section[data-testid="stSidebar"] {{
     line-height:1.8 !important;
 }}
 
-/* Input UI Frame positioning sheets */
+/* Input bar alignment overrides */
 div[data-testid="stBottom"] > div {{
     background: transparent !important;
     padding: 8px 0 16px 0 !important;
@@ -198,7 +198,7 @@ div[data-testid="stChatInput"] button:hover {{
     background: #2a6dd9 !important;
 }}
 
-/* Tray toggle icon */
+/* Options panel tray button layouts */
 div[data-testid="stHorizontalBlock"] .tray-col button {{
     background: {T["pill_bg"]} !important;
     border: 1px solid {T["pill_bd"]} !important;
@@ -214,7 +214,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
     border-color: #4285f4 !important;
 }}
 
-/* Options panel tray card */
+/* Floating tray container popover sheets */
 .gemini-tray {{
     background:{T["pop_bg"]}; border:1px solid {T["pop_bd"]}; border-radius:20px;
     padding:8px 0; width:220px; box-shadow:0 12px 36px rgba(0,0,0,.5); margin-bottom:8px;
@@ -225,7 +225,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 .gemini-tray-divider {{ height:1px; background:{T["pop_bd"]}; margin:4px 0; }}
 
-/* Sidebar items */
+/* Sidebar button mappings */
 .new-chat-btn button {{
     background:linear-gradient(135deg,#4285f4,#9b72cb) !important;
     border:none !important; border-radius:12px !important;
@@ -240,7 +240,7 @@ div[data-testid="stHorizontalBlock"] .tray-col button:hover {{
 }}
 </style>""", unsafe_allow_html=True)
 
-# ── 9. SIDEBAR ────────────────────────────────────────────────────────────────
+# ── 9. SIDEBAR NAVIGATION CONTROLS ────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<h2 style='color:#4285f4;margin-bottom:12px'>✦ Feemo AI</h2>",
                 unsafe_allow_html=True)
@@ -357,7 +357,7 @@ st.markdown(
     "<h1 class='logo-txt'>FEEMO AI</h1></div>",
     unsafe_allow_html=True)
 
-# Render chat history
+# Render chat history nodes safely
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(str(msg.get("content", "")))
@@ -374,6 +374,7 @@ with col_tray:
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
+# Popup tray drawer choices
 if st.session_state.show_tray and not st.session_state.active_upload_type:
     st.markdown(f"""
     <div class="gemini-tray">
@@ -395,7 +396,7 @@ if st.session_state.show_tray and not st.session_state.active_upload_type:
         if st.button("📁 Import code", key="opt_code", use_container_width=True):
             st.session_state.active_upload_type = "code"; st.rerun()
 
-# Dynamic contextual files uploader frames
+# Context asset parsing drops
 if st.session_state.active_upload_type:
     with st.container(border=True):
         ch, cc2 = st.columns([12, 1])
@@ -412,33 +413,33 @@ if st.session_state.active_upload_type:
                     try:
                         reader = PyPDF2.PdfReader(f)
                         txt = "".join(p.extract_text() or "" for p in reader.pages[:10])
-                        st.session_state.staged_context += f"\n[PDF REFERENCE: {f.name}]:\n{txt[:4000]}"
-                        st.success(f"Context Staged: {f.name}")
+                        st.session_state.staged_context += f"\n[DOCUMENT TEXT CONTENT LAYERS - FILE: {f.name}]:\n{txt[:4000]}"
+                        st.success(f"Document Text Context Staged: {f.name}")
                     except: st.error("Could not parse PDF.")
             elif atype == "photo":
-                f = st.file_uploader("Image", type=["png","jpg","jpeg"], key="fu_photo")
+                f = st.file_uploader("Image Assets", type=["png","jpg","jpeg"], key="fu_photo")
                 if f:
                     st.image(f, width=200)
                     bytes_data = f.getvalue()
-                    # Precision binary string formatting compilation pipeline
+                    # Convert image binary to direct Base64 inline tracking string
                     st.session_state.staged_image_b64 = base64.b64encode(bytes_data).decode("utf-8")
-                    st.success(f"Visual Assets Scaled and Processed: {f.name}")
+                    st.success(f"Image Pixel Context Processed and Staged: {f.name}")
             elif atype == "code":
                 f = st.file_uploader("Code / Data file",
                                      type=["txt","py","csv","json"], key="fu_code")
                 if f:
                     try:
                         st.session_state.staged_context += (
-                            f"\n[CODE ATTACHMENT CONTEXT LAYER: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
-                        st.success(f"Source Code Staged: {f.name}")
+                            f"\n[SOURCE CODE ANALYSIS LAYER - FILE: {f.name}]:\n{f.read().decode('utf-8')[:3000]}")
+                        st.success(f"Source Code Context Staged: {f.name}")
                     except: st.error("Could not decode file.")
 
 # ── 13. CHAT INPUT BAR ─────────────────────────────────────────────────────────
 prompt = st.chat_input("Ask Feemo AI anything...")
 
-# ── 14. PROCESS PROMPT AND SYSTEM INTERCEPT ───────────────────────────────────
+# ── 14. PROCESS PROMPT AND STRUCTURE ASSIGNMENT ────────────────────────────────
 if prompt and prompt.strip():
-    # Cache active base64 image slice into a safe runtime memory block
+    # Cache structural multi-modal parameter slots safely before clearing staging slots
     st.session_state["active_image_payload"] = st.session_state.staged_image_b64
     
     full_payload = prompt.strip()
@@ -455,7 +456,7 @@ if prompt and prompt.strip():
     st.session_state.staged_image_b64  = ""
     st.rerun()
 
-# ── 15. DYNAMIC MODEL MULTI-MODAL ROUTER INFERENCE LAYER ─────────────────────
+# ── 15. PURE VISION UNIFIED INFERENCE MATRIX ──────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
@@ -463,28 +464,24 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
     image_b64_payload = st.session_state.get("active_image_payload", "")
 
-    # Clean old conversation array formatting to plain text strings for API structural safety
+    # Hard conversion check: Every old message entry must be stripped to clean strings to prevent structure drops
     api_messages = []
     for m in st.session_state.messages[:-1]:
         api_messages.append({"role": m["role"], "content": str(m.get("content", ""))})
 
-    # ── MULTI-MODAL ROUTER SWITCH ──
+    # UNIFIED MULTIMODAL MESSAGE STRUCTURE DESIGN (Llama 3.2 Vision standard)
     if image_b64_payload:
-        target_model = "llama-3.2-11b-vision-preview"
-        # Vision arrays require high-fidelity list indexing structures
-        api_messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": str(current_prompt)},
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{image_b64_payload}"}
-                }
-            ]
-        })
+        content_block = [
+            {"type": "text", "text": str(current_prompt)},
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{image_b64_payload}"}
+            }
+        ]
     else:
-        target_model = "llama-3.3-70b-versatile"
-        api_messages.append({"role": "user", "content": str(current_prompt)})
+        content_block = [{"type": "text", "text": str(current_prompt)}]
+
+    api_messages.append({"role": "user", "content": content_block})
 
     try:
         res = requests.post(
@@ -494,15 +491,14 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 "Content-Type": "application/json"
             },
             json={
-                "model": target_model,
+                "model": "llama-3.2-11b-vision-preview", # Locked permanent default multi-modal master engine
                 "messages": [
                     {
                         "role": "system", 
                         "content": (
-                            f"You are Feemo AI, a brilliant multi-modal computer vision and engineering assistant to {st.session_state.first_name}. "
-                            f"You have deep visual, layout design, and mathematical analytical capabilities. When an image is passed "
-                            f"inside your user message context block, analyze it natively down to the pixel layer to write requested code blueprints, "
-                            f"explain system architectures, extract raw text patterns, or build UI frameworks flawlessly."
+                            f"You are Feemo AI, a highly capable multi-modal system assistant to {st.session_state.first_name}. "
+                            f"You have native, expert computer vision, OCR text extraction, script reading, and structural layout generation capabilities. "
+                            f"Analyse text inputs, source documents, raw tables, and user uploaded image pixels completely to fulfill instructions perfectly."
                         )
                     }
                 ] + api_messages,
