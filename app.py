@@ -439,7 +439,6 @@ prompt = st.chat_input("Ask Feemo AI anything...")
 
 # ── 14. PROCESS PROMPT AND STRUCTURE ASSIGNMENT ────────────────────────────────
 if prompt and prompt.strip():
-    # Cache structural multi-modal parameter slots safely before clearing staging slots
     st.session_state["active_image_payload"] = st.session_state.staged_image_b64
     
     full_payload = prompt.strip()
@@ -456,7 +455,7 @@ if prompt and prompt.strip():
     st.session_state.staged_image_b64  = ""
     st.rerun()
 
-# ── 15. PURE VISION UNIFIED INFERENCE MATRIX ──────────────────────────────────
+# ── 15. SANITIZED VISION INFERENCE LAYER ──────────────────────────────────────
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     ph = st.empty()
     ph.markdown(TYPING_HTML, unsafe_allow_html=True)
@@ -464,12 +463,15 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     current_prompt = st.session_state.get("active_payload", st.session_state.messages[-1]["content"])
     image_b64_payload = st.session_state.get("active_image_payload", "")
 
-    # Hard conversion check: Every old message entry must be stripped to clean strings to prevent structure drops
+    # Meticulously loop through and convert every historical turn into vision-compliant payload structures
     api_messages = []
     for m in st.session_state.messages[:-1]:
-        api_messages.append({"role": m["role"], "content": str(m.get("content", ""))})
+        api_messages.append({
+            "role": m["role"],
+            "content": [{"type": "text", "text": str(m.get("content", ""))}]
+        })
 
-    # UNIFIED MULTIMODAL MESSAGE STRUCTURE DESIGN (Llama 3.2 Vision standard)
+    # Append current payload node to the stack
     if image_b64_payload:
         content_block = [
             {"type": "text", "text": str(current_prompt)},
@@ -491,12 +493,12 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama-3.2-11b-vision-preview", # Locked permanent default multi-modal master engine
+                "model": "llama-3.2-11b-vision-preview", 
                 "messages": [
                     {
                         "role": "system", 
                         "content": (
-                            f"You are Feemo AI, a highly capable multi-modal system assistant to {st.session_state.first_name}. "
+                            f"You are Feemo AI, a brilliant multi-modal computer vision and engineering assistant to {st.session_state.first_name}. "
                             f"You have native, expert computer vision, OCR text extraction, script reading, and structural layout generation capabilities. "
                             f"Analyse text inputs, source documents, raw tables, and user uploaded image pixels completely to fulfill instructions perfectly."
                         )
@@ -512,7 +514,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             st.session_state.messages.append({"role": "assistant", "content": reply})
             save_chat_message("assistant", reply)
             
-            # Flush temporal execution memories
             if "active_payload" in st.session_state: del st.session_state["active_payload"]
             if "active_image_payload" in st.session_state: del st.session_state["active_image_payload"]
             st.rerun()
