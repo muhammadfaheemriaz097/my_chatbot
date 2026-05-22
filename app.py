@@ -6,7 +6,6 @@ from groq import Groq
 # ── 1. DATABASE AND GROQ ENGINE INITIALIZATION ────────────────────────────────
 try:
     supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    # Initialize the Groq hardware acceleration client directl
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception as e:
     st.error(f"Configuration Error: {e}")
@@ -110,13 +109,13 @@ T = {
 }
 
 TYPING_HTML = """
+<div class="ft"><span></span><span></span><span></span></div>
 <style>
 @keyframes fb{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-6px);opacity:1}}
 .ft{display:flex;align-items:center;gap:5px;padding:12px 16px}
-.ft span{width:8px;height:8px;border-radius:50%;background:#ff5823;display:inline-block;animation:fb 1.2s infinite ease-in-out}
+.ft span{width:8px;height:8px;border-radius:50%;background:#ff4b2b;display:inline-block;animation:fb 1.2s infinite ease-in-out}
 .ft span:nth-child(2){animation-delay:.2s}.ft span:nth-child(3){animation-delay:.4s}
 </style>
-<div class="ft"><span></span><span></span><span></span></div>
 """
 
 # ── 7. GLOBAL CSS OVERRIDES ───────────────────────────────────────────────────
@@ -193,7 +192,7 @@ with st.sidebar:
     else:
         st.info("Log in to start chatting.")
 
-# ── 9. AUTH GATEWAY ───────────────────────────────────────────────────────────
+# ── 9. AUTH GATEWAY WITH COMPLETE TABS ────────────────────────────────────────
 if not st.session_state.authenticated:
     st.markdown("<div class='logo-wrap'><h1 class='logo-txt'>FEEMO AI</h1></div>", unsafe_allow_html=True)
     t1, t2, t3 = st.tabs(["SIGN IN", "CREATE ACCOUNT", "FORGOT PASSWORD"])
@@ -212,7 +211,29 @@ if not st.session_state.authenticated:
                         st.session_state.first_name = (meta.get("full_name") or email_in.split("@")[0])
                         st.rerun()
                 except: st.error("Invalid email or password.")
-    # (T2 and T3 omitted for runtime brevity, structural alignment preserved)
+
+    with t2:
+        with st.form("register_form"):
+            full_name = st.text_input("Full Name")
+            reg_email = st.text_input("Email")
+            reg_pass  = st.text_input("Password", type="password")
+            if st.form_submit_button("REGISTER", use_container_width=True):
+                try:
+                    supabase.auth.sign_up({
+                        "email": reg_email, "password": reg_pass,
+                        "options": {"data": {"full_name": full_name}}
+                    })
+                    st.success("Registration success! Check your email for the activation link.")
+                except: st.error("Signup failed. Ensure details are correct.")
+
+    with t3:
+        with st.form("reset_form"):
+            reset_email = st.text_input("Enter your email")
+            if st.form_submit_button("SEND RESET LINK", use_container_width=True):
+                try:
+                    supabase.auth.reset_password_for_email(reset_email)
+                    st.success("Password recovery link dispatched to your inbox!")
+                except: st.error("Reset request failed. Please try again.")
     st.stop()
 
 # ── 10. CHAT WORKSPACE ────────────────────────────────────────────────────────
@@ -249,51 +270,4 @@ if st.session_state.active_upload_type:
                 st.session_state.staged_context += f"\n[PDF CONTEXT]:\n{txt[:3000]}"
                 st.success(f"Staged text matrix from: {f.name}")
         elif atype == "code":
-            f = st.file_uploader("Code script", type=["txt","py","json","csv"])
-            if f:
-                st.session_state.staged_context += f"\n[SOURCE CODE]:\n{f.read().decode('utf-8')[:3000]}"
-                st.success(f"Staged script content: {f.name}")
-
-# ── 12. GROQ HIGH-SPEED INFERENCE RUNNER ─────────────────────────────────────
-prompt = st.chat_input("Ask Feemo AI anything...")
-
-if prompt and prompt.strip():
-    full_payload = prompt.strip()
-    if st.session_state.staged_context:
-        full_payload = f"{full_payload}\n\n{st.session_state.staged_context}"
-
-    st.session_state.messages.append({"role": "user", "content": prompt.strip()})
-    save_chat_message("user", prompt.strip())
-
-    # Build memory payloads safely for Groq engine array structure
-    groq_messages = [{"role": "system", "content": f"You are Feemo AI, an elite AI Engineer assistant to {st.session_state.first_name}. Generate clean source layouts and robust technical debugging blocks."}]
-    
-    for m in st.session_state.messages[:-1]:
-        groq_messages.append({"role": m["role"], "content": str(m.get("content", ""))})
-    
-    groq_messages.append({"role": "user", "content": full_payload})
-
-    # Flush staging variables
-    st.session_state.staged_context = ""
-    st.session_state.show_tray = False
-    st.session_state.active_upload_type = None
-
-    ph = st.empty()
-    ph.markdown(TYPING_HTML, unsafe_allow_html=True)
-
-    try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-specdec",
-            messages=groq_messages,
-            max_tokens=1500,
-            temperature=0.5
-        )
-        reply = completion.choices[0].message.content
-        ph.empty()
-
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-        save_chat_message("assistant", reply)
-        st.rerun()
-    except Exception as e:
-        ph.empty()
-        st.error(f"Groq Core Execution Failure: {e}")
+            f = st.file_uploader("Code script", type=
