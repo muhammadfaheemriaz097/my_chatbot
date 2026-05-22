@@ -6,7 +6,7 @@ from groq import Groq
 # ── 1. DATABASE AND GROQ ENGINE INITIALIZATION ────────────────────────────────
 try:
     supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    # Initialize the Groq hardware acceleration client directly
+    # Initialize the Groq hardware acceleration client directl
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception as e:
     st.error(f"Configuration Error: {e}")
